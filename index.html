@@ -73,6 +73,7 @@ html {
 body {
   background: var(--bg-void);
   min-height: 100vh;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -1569,11 +1570,53 @@ body {
   .viz-card:nth-child(n) {
     grid-column: 1;
   }
-  .hero { padding-top: 5rem; }
+  .hero { padding-top: 5rem; padding-left: 1rem; padding-right: 1rem; }
+  .hero-sub { max-width: 100%; padding: 0 0.5rem; }
+  .hero-tagline { letter-spacing: 0.02em; }
+  .hero-badge { font-size: 0.55rem; letter-spacing: 0.06em; padding: 0.4rem 0.8rem; }
   .player-mockup { border-radius: 10px; }
   .mock-body { grid-template-columns: 1fr; height: auto; }
   .mock-sidebar { display: none; }
   .mock-visualizer { height: 140px; }
+  .section { padding-left: 1rem; padding-right: 1rem; }
+  .section-title { word-break: break-word; }
+  .section-desc { font-size: 0.95rem; }
+  .btn-primary, .btn-secondary { font-size: 0.75rem; padding: 0.8rem 1.5rem; letter-spacing: 0.06em; }
+  .btn-download { font-size: 0.8rem; padding: 0.9rem 1.8rem; }
+  .arch-diagram { padding: 1rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .arch-box { white-space: normal; font-size: 0.65rem; padding: 0.4rem 0.6rem; }
+  .arch-row { flex-wrap: wrap; gap: 0.3rem; }
+  .pipeline-node { font-size: 0.7rem; padding: 0.6rem 1rem; max-width: 100%; }
+  .pipeline-branch { flex-direction: column; gap: 0; align-items: center; }
+  .pipeline-branch-line { display: none; }
+  .tech-badge { font-size: 0.7rem; padding: 0.5rem 0.8rem; }
+  .format-badge { font-size: 0.65rem; padding: 0.4rem 0.7rem; }
+  .feature-card { padding: 1.25rem; }
+  .feature-title { font-size: 0.8rem; }
+  .feature-text { font-size: 0.82rem; }
+  .viz-info { padding: 0.8rem 1rem; }
+  .viz-name { font-size: 0.78rem; }
+  .viz-desc { font-size: 0.78rem; }
+  .viz-preview { height: 150px; }
+  .coming-badge { font-size: 0.65rem; }
+  .sys-req { font-size: 0.7rem; padding: 0.8rem; }
+  .download-title { word-break: break-word; }
+  .footer-inner { padding: 0 0.5rem; }
+  .footer-links { gap: 0.8rem; font-size: 0.75rem; }
+  .footer-tagline { font-size: 0.7rem; }
+  .github-link { font-size: 0.8rem; }
+}
+
+@media (max-width: 380px) {
+  .hero-title { letter-spacing: -0.01em; }
+  .hero-buttons { flex-direction: column; align-items: center; gap: 0.6rem; }
+  .btn-primary, .btn-secondary { width: 100%; justify-content: center; font-size: 0.7rem; }
+  .btn-download { width: 100%; justify-content: center; }
+  .section { padding-left: 0.75rem; padding-right: 0.75rem; }
+  .nav { padding: 0 0.75rem; }
+  .tech-grid { gap: 0.5rem; }
+  .tech-badge { font-size: 0.6rem; padding: 0.4rem 0.6rem; }
+  .arch-box { font-size: 0.55rem; padding: 0.3rem 0.5rem; }
 }
 
 /* ============ CUSTOM CURSOR GLOW ============ */
