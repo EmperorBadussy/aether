@@ -1,0 +1,54 @@
+# === AETHER .gitignore ===
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Electron build output
+dist/
+out/
+build/
+release/
+*.exe
+*.msi
+*.dmg
+*.AppImage
+*.snap
+*.deb
+*.rpm
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.lnk
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment / Secrets
+.env
+.env.*
+credentials.json
+*.pem
+*.key
+
+# Logs
+*.log
+
+# Navidrome data (never commit server data)
+navidrome.db
+navidrome.db-*
+
+# Temp
+*.tmp
+*.bak
+*.orig
+
+# Electric Sheep video cache
+sheep_videos/
