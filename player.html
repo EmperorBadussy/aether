@@ -4846,38 +4846,34 @@ function drawTronGrid(ctx, w, h, time) {
   ctx.fillStyle = sunGrad;
   ctx.fillRect(vanishX - sunRadius, horizon - sunRadius, sunRadius * 2, sunRadius * 2);
 
-  // === HORIZONTAL GRID LINES - thin, bright, clean ===
+  // === HORIZONTAL GRID LINES — crisp cyan, clean and sharp ===
   for (let i = 0; i < gridLines; i++) {
     const t = (i / gridLines + speed) % 1;
-    const y = horizon + (h - horizon) * Math.pow(t, 1.4) + bassShakeY;
+    const rawY = horizon + (h - horizon) * Math.pow(t, 1.4) + bassShakeY;
+    const y = Math.round(rawY) + 0.5; // Snap to pixel for crisp lines
     const proximity = Math.pow(t, 0.6);
-    const alpha = proximity * (0.4 + bands.bass * 0.8 + bi * 0.4);
-    const lineW = 0.4 + proximity * (0.8 + bassBoost * 1.5 + bi * 0.8);
+    const alpha = proximity * (0.35 + bands.bass * 0.5 + bi * 0.3);
+    const lineW = proximity > 0.3 ? 1 : 0.5; // Crisp: either 1px or 0.5px, no fractional blur
 
-    ctx.beginPath(); ctx.moveTo(0 + bassShakeX, y); ctx.lineTo(w + bassShakeX, y);
-    const cr = Math.round(140 + bi * 60 + bands.bass * 40);
-    const cg = Math.round(60 + bi * 180 + bands.bass * 60);
-    const cb = Math.round(220 + bi * 35);
-    ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${Math.min(1, alpha)})`;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y);
+    ctx.strokeStyle = `rgba(0, 220, 245, ${Math.min(0.8, alpha)})`;
     ctx.lineWidth = lineW;
     ctx.stroke();
   }
 
-  // === VERTICAL CONVERGING LINES - thin only, no thick glow ===
-  const vLines = 20;
+  // === VERTICAL CONVERGING LINES — purple only, ultra-thin, crisp ===
+  const vLines = 24;
   for (let i = -vLines; i <= vLines; i++) {
-    const spread = 2.2 + bassBoost * 0.8 + bi * 0.3;
+    if (i === 0) continue; // skip center line for cleanliness
+    const spread = 2.4 + bassBoost * 0.6 + bi * 0.2;
     const baseX = vanishX + i * (w / vLines) * spread + bassShakeX;
     const dist = Math.abs(i) / vLines;
-    const alpha = Math.max(0, 0.2 + bands.energy * 0.35 + bands.bass * 0.2 - dist * 0.12);
+    const alpha = Math.max(0, 0.12 + bands.energy * 0.15 + bands.bass * 0.08 - dist * 0.1);
     if (alpha <= 0) continue;
-    const lineW = 0.3 + (1 - dist) * (0.6 + bassBoost * 1 + bi * 0.5);
+    const lineW = 0.3 + (1 - dist) * 0.4;
 
     ctx.beginPath(); ctx.moveTo(vanishX + bassShakeX, horizon + bassShakeY); ctx.lineTo(baseX, h);
-    const vr = Math.round(157 + bi * 40 + bands.bass * 30);
-    const vg = Math.round(78 + bi * 140 + bands.bass * 50);
-    const vb = Math.round(221 + bi * 34);
-    ctx.strokeStyle = `rgba(${vr}, ${vg}, ${vb}, ${Math.min(0.7, alpha)})`;
+    ctx.strokeStyle = `rgba(157, 78, 221, ${Math.min(0.35, alpha)})`;
     ctx.lineWidth = lineW; ctx.stroke();
   }
 
@@ -4900,51 +4896,60 @@ function drawTronGrid(ctx, w, h, time) {
   ctx.lineWidth = 8 + bi * 16 + bands.bass * 12;
   ctx.beginPath(); ctx.moveTo(0, horizon + bassShakeY); ctx.lineTo(w, horizon + bassShakeY); ctx.stroke();
 
-  // === PULSE WAVE - more on bass ===
-  const pulseCount = 3 + (bands.bass > 0.5 ? 2 : 0);
+  // === PULSE WAVES — clean horizontal sweeps moving down the grid ===
+  const pulseCount = 4;
   for (let p = 0; p < pulseCount; p++) {
-    const pulseT = ((time * 0.0003 + p / pulseCount) % 1);
-    const pulseY = horizon + (h - horizon) * Math.pow(pulseT, 1.3) + bassShakeY;
-    const pulseAlpha = (1 - pulseT) * (0.3 + bi * 0.6 + bands.bass * 0.4);
-    const pulseWidth = 2 + (1 - pulseT) * 4 + bi * 6 + bands.bass * 4;
+    const pulseT = ((time * 0.00025 + p / pulseCount) % 1);
+    const rawPulseY = horizon + (h - horizon) * Math.pow(pulseT, 1.3) + bassShakeY;
+    const pulseY = Math.round(rawPulseY) + 0.5;
+    const pulseLife = 1 - pulseT;
+    const pulseAlpha = pulseLife * (0.4 + bi * 0.5 + bands.bass * 0.3);
+
+    // Sharp bright core line
     ctx.beginPath(); ctx.moveTo(0, pulseY); ctx.lineTo(w, pulseY);
-    ctx.strokeStyle = `rgba(0, 220, 245, ${pulseAlpha})`;
-    ctx.lineWidth = pulseWidth; ctx.stroke();
-    ctx.strokeStyle = `rgba(0, 220, 245, ${pulseAlpha * 0.18})`;
-    ctx.lineWidth = pulseWidth * 5;
-    ctx.beginPath(); ctx.moveTo(0, pulseY); ctx.lineTo(w, pulseY); ctx.stroke();
+    ctx.strokeStyle = `rgba(0, 220, 245, ${Math.min(1, pulseAlpha)})`;
+    ctx.lineWidth = 1.5 + pulseLife * 1.5; ctx.stroke();
+
+    // Soft glow halo
+    const haloSize = 6 + pulseLife * 10 + bi * 8;
+    const haloGrad = ctx.createLinearGradient(0, pulseY - haloSize, 0, pulseY + haloSize);
+    haloGrad.addColorStop(0, 'transparent');
+    haloGrad.addColorStop(0.4, `rgba(0, 220, 245, ${pulseAlpha * 0.08})`);
+    haloGrad.addColorStop(0.5, `rgba(0, 220, 245, ${pulseAlpha * 0.15})`);
+    haloGrad.addColorStop(0.6, `rgba(0, 220, 245, ${pulseAlpha * 0.08})`);
+    haloGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = haloGrad;
+    ctx.fillRect(0, pulseY - haloSize, w, haloSize * 2);
   }
 
-  // === LIGHT COLUMNS - more reactive ===
-  if (bi > 0.08 || bands.bass > 0.35) {
-    const colCount = 5 + (bands.bass > 0.6 ? 3 : 0);
-    const reactivity = Math.max(bi, bands.bass * 0.8);
-    for (let i = 0; i < colCount; i++) {
-      const x = w * (0.1 + i * (0.8 / colCount)) + Math.sin(time * 0.0008 + i * 1.3) * 40 + bassShakeX;
-      const colW = 1.5 + reactivity * 14;
-      const colGrad = ctx.createLinearGradient(0, horizon, 0, h);
-      colGrad.addColorStop(0, `rgba(0, 220, 245, ${reactivity * 0.8})`);
-      colGrad.addColorStop(0.5, `rgba(183, 110, 255, ${reactivity * 0.4})`);
-      colGrad.addColorStop(1, 'transparent');
-      ctx.fillStyle = colGrad;
-      ctx.fillRect(x - colW / 2, horizon, colW, h - horizon);
-      ctx.fillStyle = colGrad; ctx.globalAlpha = 0.15;
-      ctx.fillRect(x - colW * 2, horizon, colW * 4, h - horizon);
-      ctx.globalAlpha = 1;
-    }
-  }
+  // === FLOATING ORBS — slow, nebulous, clean ===
+  const orbCount = 8;
+  for (let i = 0; i < orbCount; i++) {
+    const seed = i * 3571;
+    const orbPhase = time * 0.00015 + (seed % 100) * 0.1;
+    const orbX = vanishX + Math.sin(orbPhase * 0.7 + i * 1.8) * (w * 0.35) + Math.cos(orbPhase * 0.3 + i) * 40;
+    const orbBaseY = horizon * 0.25 + ((seed * 13) % 100) / 100 * horizon * 0.6;
+    const orbY = orbBaseY + Math.sin(orbPhase + i * 2.1) * 20;
+    const breathe = Math.sin(time * 0.0008 + i * 1.4) * 0.5 + 0.5;
+    const orbR = 12 + breathe * 18 + bands.energy * 8;
+    const orbAlpha = 0.04 + breathe * 0.06 + bi * 0.03;
 
-  // === Bass shockwave ring effect ===
-  if (bands.bass > 0.55 && bi > 0.3) {
-    const shockT = (time * 0.002) % 1;
-    const shockR = 20 + shockT * Math.min(w, h) * 0.4;
-    const shockAlpha = (1 - shockT) * bands.bass * 0.4;
-    ctx.beginPath();
-    ctx.ellipse(vanishX, horizon, shockR * 2, shockR * 0.3, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(0, 220, 245, ${shockAlpha})`;
-    ctx.lineWidth = 2 + bands.bass * 3; ctx.stroke();
-    ctx.strokeStyle = `rgba(0, 220, 245, ${shockAlpha * 0.2})`;
-    ctx.lineWidth = 8 + bands.bass * 10; ctx.stroke();
+    // Outer nebulous glow
+    const outerGrad = ctx.createRadialGradient(orbX, orbY, 0, orbX, orbY, orbR * 3.5);
+    outerGrad.addColorStop(0, `rgba(157, 78, 221, ${orbAlpha * 1.5})`);
+    outerGrad.addColorStop(0.25, `rgba(123, 47, 190, ${orbAlpha})`);
+    outerGrad.addColorStop(0.6, `rgba(74, 45, 107, ${orbAlpha * 0.4})`);
+    outerGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = outerGrad;
+    ctx.beginPath(); ctx.arc(orbX, orbY, orbR * 3.5, 0, Math.PI * 2); ctx.fill();
+
+    // Inner bright core
+    const coreGrad = ctx.createRadialGradient(orbX, orbY, 0, orbX, orbY, orbR * 0.8);
+    coreGrad.addColorStop(0, `rgba(212, 160, 255, ${orbAlpha * 4})`);
+    coreGrad.addColorStop(0.5, `rgba(183, 110, 255, ${orbAlpha * 2})`);
+    coreGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath(); ctx.arc(orbX, orbY, orbR * 0.8, 0, Math.PI * 2); ctx.fill();
   }
 
   // === Edge vignette for depth ===
@@ -6815,10 +6820,10 @@ function drawVoidPulseII(ctx, w, h, time) {
       const color = ringColors[Math.floor(Math.random() * ringColors.length)];
       voidPulseIIRings.push({
         radius: 5 + i * 8,
-        maxRadius: minDim * (0.6 + Math.random() * 0.4),
-        speed: 0.4 + bi * 1.2 + Math.random() * 0.3,
-        alpha: 0.7 + bi * 0.3,
-        lineWidth: 1.5 + bi * 2.5,
+        maxRadius: Math.max(w, h) * (0.9 + Math.random() * 0.6),
+        speed: 0.5 + bi * 1.5 + Math.random() * 0.4,
+        alpha: 0.8 + bi * 0.2,
+        lineWidth: 1.8 + bi * 3,
         born: now,
         wobbleAmp: bands.mid * 6 + bands.high * 3,
         wobbleFreq: 3 + Math.floor(Math.random() * 5),
@@ -6882,7 +6887,7 @@ function drawVoidPulseII(ctx, w, h, time) {
   ctx.globalCompositeOperation = 'source-over';
 
   // Ambient radial glow — cyan/magenta/purple mix
-  const ambientR = minDim * 0.6 + bands.energy * 40;
+  const ambientR = Math.max(w, h) * 0.55 + bands.energy * 60;
   const ambGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, ambientR);
   ambGrad.addColorStop(0, `rgba(255, 45, 123, ${0.02 + bands.energy * 0.02})`);
   ambGrad.addColorStop(0.3, `rgba(157, 78, 221, ${0.015 + bands.energy * 0.02})`);

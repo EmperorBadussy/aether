@@ -33,7 +33,6 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     frame: false,
-    titleBarStyle: 'hidden',
     backgroundColor: '#000000',
     show: false,
     icon: path.join(__dirname, 'icon.ico'),
@@ -41,6 +40,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,      // Required for fs/path access in preload (Electric Sheep scan)
       webSecurity: false,  // Allow fetch to localhost Navidrome from file:// origin
       webgl: true,
       backgroundThrottling: false,
