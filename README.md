@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <strong>OLED-black. Tron-purple. 13 real-time generative visualizers. Rhythmic Binaural Brainwave Layering Engine. Zero compromise.</strong>
+  <strong>OLED-black. Tron-purple. 17 real-time generative visualizers. Rhythmic Binaural Brainwave Layering Engine. Zero compromise.</strong>
 </p>
 
 ---
@@ -270,12 +270,17 @@ Outputs to `dist/` — NSIS installer for Windows x64.
 | `Space` | Play / Pause |
 | `Ctrl + Right` | Next Track |
 | `Ctrl + Left` | Previous Track |
-| `Ctrl + Up` | Volume Up |
-| `Ctrl + Down` | Volume Down |
+| `Ctrl + Up / Down` | Volume Up / Down |
+| `Left / Right` | Seek -5s / +5s |
+| `Ctrl + K` | Search |
+| `Ctrl + ,` | Settings |
 | `M` | Mute Toggle |
 | `S` | Shuffle Toggle |
 | `R` | Repeat Toggle |
+| `Q` | Toggle Queue |
 | `V` | Cycle Visualizer |
+| `F` | Fullscreen Visualizer |
+| `N / P` | Next / Previous Sheep Video |
 | `Escape` | Close Overlays |
 | `F12` | Toggle DevTools |
 
