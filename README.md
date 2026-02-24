@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <strong>OLED-black. Tron-purple. 13 real-time generative visualizers. Zero compromise.</strong>
+  <strong>OLED-black. Tron-purple. 13 real-time generative visualizers. Rhythmic Binaural Brainwave Layering Engine. Zero compromise.</strong>
 </p>
 
 ---
@@ -66,7 +66,8 @@ Auto-rotate cycles through scenes, or pin your favorite. Every scene has unique 
   ├─ 10-band parametric EQ (Web Audio API BiquadFilters)
   ├─ Beat detection (FFT analysis, band extraction)
   ├─ Format support: FLAC, MP3, OGG, AAC, WAV, OPUS
-  └─ Volume control with mute toggle
+  ├─ Volume control with mute toggle
+  └─ RHYTHMIC BINAURAL BRAINWAVE ENGINE (see below)
 
  LIBRARY
   ├─ Navidrome/Subsonic API integration
@@ -94,6 +95,51 @@ Auto-rotate cycles through scenes, or pin your favorite. Every scene has unique 
   ├─ System tray with minimize-to-tray
   ├─ Settings persisted to localStorage
   └─ F12 DevTools toggle
+```
+
+<br/>
+
+## `> RHYTHMIC BINAURAL BRAINWAVE LAYERING ENGINE`
+
+**AETHER isn't just a music player — it's a neural entrainment system.**
+
+Built-in binaural beats generator using Web Audio API oscillators. Two sine waves play at slightly different frequencies in each ear — your brain perceives the difference as a "beat" that entrains neural oscillations to specific brainwave states.
+
+### Single Tone Mode
+Pick a brainwave preset and go — or dial in custom frequencies with precision sliders.
+
+| Preset | Beat Frequency | Base Frequency | Brain State |
+|--------|---------------|----------------|-------------|
+| **Delta** | 2 Hz | 150 Hz | Deep sleep |
+| **Theta** | 6 Hz | 200 Hz | Meditation |
+| **Alpha** | 10 Hz | 200 Hz | Relaxation / Focus |
+| **Beta** | 20 Hz | 250 Hz | Alertness |
+| **Gamma** | 40 Hz | 300 Hz | Peak cognition |
+
+### Rhythm Layer Mode — This Is The Insane Part
+
+**Stack multiple binaural brainwave frequencies, each pulsing at a different rhythmic division.**
+
+Delta droning on whole notes. Theta pulsing quarter notes. Gamma flickering on sixteenths. All synchronized to a master BPM clock with sample-accurate scheduling.
+
+**Rhythm Presets:**
+- **Deep Meditation** — Delta whole notes + Theta halves (60 BPM)
+- **Focus Flow** — Alpha quarters + Beta eighths (80 BPM)
+- **Lucid Dream** — Delta whole + Theta quarter + Alpha triplet (50 BPM)
+- **Peak Performance** — Alpha half + Beta quarter + Gamma eighth (100 BPM)
+- **Shamanic Journey** — Theta whole + Delta triplet + Gamma sixteenths (55 BPM)
+
+Build your own layers. Mix with your music. The visualizers react to the binaural tones.
+
+```
+ RHYTHM ENGINE ARCHITECTURE
+  ├─ Lookahead scheduler (sample-accurate Web Audio timing)
+  ├─ Per-layer gain envelope (attack → sustain → release)
+  ├─ 7 rhythmic divisions (whole, half, quarter, eighth, triplet, 6-tuplet, sixteenth)
+  ├─ Independent volume per layer
+  ├─ Live parameter changes (no restart needed)
+  ├─ Beat visualization (measure dots + per-layer pulse indicators)
+  └─ Mix with music mode (layer binaural over playback)
 ```
 
 <br/>
@@ -128,28 +174,28 @@ Auto-rotate cycles through scenes, or pin your favorite. Every scene has unique 
 
 ### Audio Pipeline
 ```
-  AudioElement
-       │
-  MediaElementSource
-       │
-  GainNode (volume)
-       │
-  BiquadFilters ×10 (parametric EQ)
-       │
-  AnalyserNode (FFT 2048)
-       │
-  AudioContext.destination
-       │
-  ╔═══════════════════════╗
-  ║  Frequency Bands      ║
-  ║  ├─ Sub    (20-60Hz)  ║
-  ║  ├─ Bass   (60-250Hz) ║
-  ║  ├─ Mid    (250-2kHz) ║
-  ║  ├─ High   (2k-8kHz)  ║
-  ║  └─ Energy (overall)  ║
-  ╚═══════════════════════╝
-       │
-  Beat Detection → Visualizer Reactivity
+  AudioElement                    Binaural Rhythm Engine
+       │                          ├─ OscL (base) → Pan(-1) ┐
+  MediaElementSource              ├─ OscR (base+N) → Pan(+1)┤ × N layers
+       │                          └─ GainNode (envelope) ───┤
+  BiquadFilters ×10 (EQ)              RhythmMasterGain ─────┤
+       │                                                     │
+       └─────────────────────────────────────────────────────┤
+                                                             │
+                                                      AnalyserNode (FFT 2048)
+                                                             │
+                                                      AudioContext.destination
+                                                             │
+                                               ╔════════════════════════════╗
+                                               ║  Frequency Band Analysis   ║
+                                               ║  ├─ Sub    (20-60Hz)       ║
+                                               ║  ├─ Bass   (60-250Hz)      ║
+                                               ║  ├─ Mid    (250-2kHz)      ║
+                                               ║  ├─ High   (2k-8kHz)       ║
+                                               ║  └─ Energy (overall)       ║
+                                               ╚════════════════════════════╝
+                                                             │
+                                               Beat Detection → Visualizers
 ```
 
 <br/>
@@ -232,6 +278,7 @@ Outputs to `dist/` — NSIS installer for Windows x64.
 
 ## `> ROADMAP`
 
+- [x] Rhythmic Binaural Brainwave Layering Engine
 - [ ] macOS & Linux builds
 - [ ] Android APK wrapper (vertical-optimized layout ready)
 - [ ] MPRIS / Windows media session integration

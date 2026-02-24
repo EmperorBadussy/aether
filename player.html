@@ -101,9 +101,9 @@
 html, body { height:100%; overflow:hidden; background:var(--bg-void); color:var(--purple-white); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
 
 /* TITLEBAR */
-.titlebar { position:fixed; top:0; left:0; right:0; height:var(--titlebar-h); background:var(--bg-surface); border-bottom:1px solid var(--purple-dim); display:flex; align-items:center; justify-content:space-between; -webkit-app-region:drag; z-index:9999; padding-left:14px; user-select:none; cursor:grab; }
-.titlebar:active { cursor:grabbing; }
-.titlebar-left { display:flex; align-items:center; gap:8px; }
+.titlebar { position:fixed; top:0; left:0; right:0; height:var(--titlebar-h); background:var(--bg-surface); border-bottom:1px solid var(--purple-dim); display:flex; align-items:center; justify-content:space-between; -webkit-app-region:drag; z-index:9999; padding-left:14px; user-select:none; }
+.titlebar-left { display:flex; align-items:center; gap:8px; -webkit-app-region:drag; }
+.titlebar-logo, .beat-dot { -webkit-app-region:drag; }
 .titlebar-logo { font-family:var(--font-display); font-weight:800; font-size:0.6rem; color:var(--purple-vivid); text-shadow:var(--glow-text); letter-spacing:0.15em; }
 .titlebar-logo .logo-p { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border:1.5px solid var(--purple-bright); border-radius:4px; font-size:0.5rem; box-shadow:var(--glow-subtle); margin-right:6px; }
 .titlebar-controls { display:flex; -webkit-app-region:no-drag; height:100%; }
@@ -1289,6 +1289,168 @@ body::after {
   pointer-events: none;
   background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%);
 }
+
+/* ============ BINAURAL BEATS VIEW ============ */
+.binaural-view { padding: 24px; max-width: 720px; margin: 0 auto; }
+.binaural-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.binaural-header h2 { font-family: var(--font-display); font-size: 1.3rem; color: var(--purple-vivid); letter-spacing: 2px; }
+.binaural-headphone-note { font-family: var(--font-mono); font-size: 0.7rem; color: var(--cyan-bright); margin-bottom: 24px; opacity: 0.8; }
+
+.binaural-presets { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
+.binaural-preset-btn {
+  background: var(--bg-raised);
+  border: 1px solid var(--purple-dim);
+  border-radius: 8px;
+  padding: 12px 18px;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-smooth);
+  text-align: center;
+  min-width: 110px;
+}
+.binaural-preset-btn:hover { border-color: var(--purple-bright); box-shadow: var(--glow-subtle); }
+.binaural-preset-btn.active { border-color: var(--purple-vivid); background: rgba(123,47,190,0.15); box-shadow: var(--glow-medium); }
+.binaural-preset-name { font-family: var(--font-display); font-size: 0.85rem; color: var(--purple-white); letter-spacing: 1px; margin-bottom: 4px; }
+.binaural-preset-info { font-family: var(--font-mono); font-size: 0.6rem; color: var(--purple-muted); }
+
+.binaural-controls { display: flex; flex-direction: column; gap: 18px; margin-bottom: 28px; }
+.binaural-slider-group { display: flex; flex-direction: column; gap: 6px; }
+.binaural-slider-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--font-mono); font-size: 0.75rem; color: var(--purple-hot);
+}
+.binaural-slider-value { color: var(--cyan-bright); font-weight: 500; }
+.binaural-slider {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
+  background: var(--bg-input); border-radius: 2px; outline: none;
+}
+.binaural-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 16px; height: 16px;
+  background: var(--purple-vivid); border-radius: 50%; cursor: pointer;
+  box-shadow: 0 0 8px rgba(183,110,255,0.5);
+  transition: box-shadow 0.2s;
+}
+.binaural-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 14px rgba(183,110,255,0.8); }
+
+.binaural-freq-display {
+  display: flex; justify-content: space-around; align-items: center;
+  background: var(--bg-raised); border: 1px solid var(--purple-dim); border-radius: 8px;
+  padding: 16px; margin-bottom: 20px; text-align: center;
+}
+.binaural-freq-item { display: flex; flex-direction: column; gap: 4px; }
+.binaural-freq-label { font-family: var(--font-mono); font-size: 0.6rem; color: var(--purple-muted); text-transform: uppercase; letter-spacing: 1px; }
+.binaural-freq-val { font-family: var(--font-display); font-size: 1.1rem; color: var(--cyan-bright); text-shadow: 0 0 8px rgba(0,220,245,0.4); }
+
+.binaural-actions { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.binaural-play-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, var(--purple-core), var(--purple-bright));
+  border: none; border-radius: 8px; padding: 12px 28px;
+  font-family: var(--font-display); font-size: 0.85rem; color: #fff;
+  cursor: pointer; letter-spacing: 2px; transition: all 0.25s var(--ease-smooth);
+  box-shadow: var(--glow-medium);
+}
+.binaural-play-btn:hover { transform: scale(1.03); box-shadow: var(--glow-intense); }
+.binaural-play-btn.active { background: linear-gradient(135deg, var(--magenta-core), var(--magenta-bright)); }
+.binaural-play-btn svg { width: 18px; height: 18px; fill: currentColor; stroke: currentColor; }
+
+.binaural-mix-toggle {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 0.75rem; color: var(--purple-hot); cursor: pointer;
+}
+.binaural-mix-toggle input[type="checkbox"] { accent-color: var(--purple-vivid); width: 16px; height: 16px; cursor: pointer; }
+
+.binaural-status {
+  font-family: var(--font-mono); font-size: 0.7rem; color: var(--purple-muted);
+  padding: 10px 0; border-top: 1px solid var(--purple-dim); margin-top: 8px;
+}
+.binaural-status.active { color: var(--cyan-bright); }
+
+/* ============ RHYTHM LAYERS ============ */
+.rhythm-section { margin-top: 32px; border-top: 1px solid var(--purple-dim); padding-top: 24px; }
+.rhythm-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.rhythm-header h3 { font-family: var(--font-display); font-size: 1rem; color: var(--magenta-bright); letter-spacing: 2px; }
+.rhythm-subtitle { font-family: var(--font-mono); font-size: 0.65rem; color: var(--purple-muted); margin-bottom: 20px; }
+
+.rhythm-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.rhythm-preset-btn {
+  background: var(--bg-raised); border: 1px solid var(--magenta-dim); border-radius: 6px;
+  padding: 8px 14px; cursor: pointer; transition: all 0.2s var(--ease-smooth);
+}
+.rhythm-preset-btn:hover { border-color: var(--magenta-bright); box-shadow: var(--magenta-glow); }
+.rhythm-preset-btn.active { border-color: var(--magenta-vivid); background: rgba(212,20,122,0.1); box-shadow: var(--magenta-glow); }
+.rhythm-preset-name { font-family: var(--font-display); font-size: 0.75rem; color: var(--magenta-vivid); letter-spacing: 1px; }
+.rhythm-preset-desc { font-family: var(--font-mono); font-size: 0.55rem; color: var(--purple-muted); margin-top: 2px; }
+
+.rhythm-bpm-row { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.rhythm-bpm-label { font-family: var(--font-display); font-size: 0.8rem; color: var(--magenta-bright); letter-spacing: 1px; min-width: 40px; }
+.rhythm-bpm-val { font-family: var(--font-display); font-size: 1.1rem; color: var(--cyan-bright); text-shadow: 0 0 8px rgba(0,220,245,0.4); min-width: 60px; text-align: right; }
+.rhythm-bpm-slider { flex: 1; }
+
+.rhythm-layers-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.rhythm-layer-card {
+  background: var(--bg-raised); border: 1px solid var(--purple-dim); border-radius: 8px;
+  padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+  transition: all 0.2s var(--ease-smooth); position: relative;
+}
+.rhythm-layer-card.pulsing { border-color: var(--cyan-bright); box-shadow: 0 0 12px rgba(0,220,245,0.2); }
+.rhythm-layer-num {
+  font-family: var(--font-display); font-size: 0.7rem; color: var(--purple-muted);
+  width: 20px; text-align: center; flex-shrink: 0;
+}
+.rhythm-layer-select {
+  background: var(--bg-input); border: 1px solid var(--purple-dim); border-radius: 4px;
+  color: var(--purple-white); font-family: var(--font-mono); font-size: 0.75rem;
+  padding: 5px 8px; cursor: pointer; outline: none;
+}
+.rhythm-layer-select:focus { border-color: var(--purple-bright); }
+.rhythm-layer-vol { width: 70px; }
+.rhythm-layer-vol-label { font-family: var(--font-mono); font-size: 0.6rem; color: var(--purple-muted); min-width: 30px; text-align: right; }
+.rhythm-layer-remove {
+  background: none; border: 1px solid var(--magenta-dim); border-radius: 4px;
+  color: var(--magenta-muted); cursor: pointer; padding: 3px 6px; font-size: 0.7rem;
+  font-family: var(--font-mono); transition: all 0.2s; flex-shrink: 0;
+}
+.rhythm-layer-remove:hover { border-color: var(--magenta-bright); color: var(--magenta-bright); }
+.rhythm-layer-badge {
+  font-family: var(--font-display); font-size: 0.55rem; letter-spacing: 1px;
+  padding: 2px 6px; border-radius: 3px; flex-shrink: 0;
+}
+
+.rhythm-add-btn {
+  background: none; border: 1px dashed var(--purple-dim); border-radius: 8px;
+  color: var(--purple-muted); font-family: var(--font-mono); font-size: 0.75rem;
+  padding: 10px; cursor: pointer; transition: all 0.2s; width: 100%; text-align: center;
+}
+.rhythm-add-btn:hover { border-color: var(--purple-bright); color: var(--purple-bright); }
+
+.rhythm-actions { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
+.rhythm-play-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, var(--magenta-core), var(--magenta-bright));
+  border: none; border-radius: 8px; padding: 10px 24px;
+  font-family: var(--font-display); font-size: 0.8rem; color: #fff;
+  cursor: pointer; letter-spacing: 2px; transition: all 0.25s var(--ease-smooth);
+  box-shadow: var(--magenta-glow);
+}
+.rhythm-play-btn:hover { transform: scale(1.03); box-shadow: 0 0 16px rgba(255,45,123,0.4); }
+.rhythm-play-btn.active { background: linear-gradient(135deg, var(--cyan-muted), var(--cyan-core)); box-shadow: var(--cyan-glow); }
+.rhythm-play-btn svg { width: 16px; height: 16px; fill: currentColor; stroke: currentColor; }
+
+.rhythm-beat-viz {
+  display: flex; align-items: center; gap: 6px; padding: 8px 0;
+}
+.rhythm-beat-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--purple-dim); transition: all 0.08s;
+}
+.rhythm-beat-dot.on { background: var(--magenta-bright); box-shadow: 0 0 10px rgba(255,45,123,0.6); transform: scale(1.3); }
+.rhythm-beat-dot.accent { background: var(--cyan-bright); box-shadow: 0 0 10px rgba(0,220,245,0.6); transform: scale(1.5); }
+
+.rhythm-layer-indicator {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: var(--purple-dim); transition: all 0.1s;
+}
+.rhythm-layer-indicator.on { background: var(--cyan-bright); box-shadow: 0 0 8px rgba(0,220,245,0.5); }
 </style>
 </head>
 <body>
@@ -1313,6 +1475,15 @@ body::after {
 
 <!-- AMBIENT FLOATING PARTICLES -->
 <canvas id="ambientParticles"></canvas>
+
+<!-- DRAG HANDLE (bottom-right corner) -->
+<div id="dragHandle" style="position:fixed;bottom:0;right:0;width:48px;height:48px;-webkit-app-region:drag;z-index:9998;cursor:grab;display:flex;align-items:flex-end;justify-content:flex-end;padding:6px;">
+  <svg width="14" height="14" viewBox="0 0 14 14" style="opacity:0.25;pointer-events:none;">
+    <line x1="12" y1="2" x2="2" y2="12" stroke="#9d4edd" stroke-width="1"/>
+    <line x1="12" y1="6" x2="6" y2="12" stroke="#9d4edd" stroke-width="1"/>
+    <line x1="12" y1="10" x2="10" y2="12" stroke="#9d4edd" stroke-width="1"/>
+  </svg>
+</div>
 
 <!-- TITLEBAR -->
 <div class="titlebar" id="titlebar">
@@ -1350,6 +1521,10 @@ body::after {
       <div class="nav-item" data-view="genres">
         <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h6" stroke-linecap="round"/></svg>
         <span class="nav-item-label">Genres</span>
+      </div>
+      <div class="nav-item" data-view="binaural">
+        <svg viewBox="0 0 24 24"><path d="M2 12c0-3 2-7 5-7s3 4 5 4 2-4 5-4 5 4 5 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M2 16c0-2 1.5-5 3.5-5s2 3 3.5 3 1.5-3 3.5-3 2 3 3.5 3 1.5-3 3.5-3 3.5 3 3.5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/></svg>
+        <span class="nav-item-label">Binaural</span>
       </div>
       <div class="nav-item" data-action="search">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1399,7 +1574,7 @@ body::after {
 
     <!-- VISUALIZER -->
     <div class="visualizer-panel" id="vizPanel">
-      <video id="sheepVideo" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;z-index:0;" muted loop></video>
+      <video id="sheepVideo" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;z-index:0;" muted loop playsinline></video>
       <canvas id="vizCanvas" style="position:relative;z-index:1;"></canvas>
       <div class="viz-label">VISUALIZER</div>
       <div class="viz-scene-name" id="vizSceneName">FRACTAL FLAME</div>
@@ -1856,7 +2031,7 @@ let allPlaylists = [];
 let currentView = 'library';
 let vizGlowIntensity = 0;
 let currentScene = 0;
-const SCENES = ['FRACTAL FLAME', 'VOID PULSE', 'TRON GRID', 'PARTICLE FIELD', 'WAVEFORM BARS', 'PLASMA WARP', 'NEURAL WEB', 'AURORA BOREALIS', 'DNA HELIX', 'COSMIC MANDALA', 'ELECTRIC SHEEP', 'BIO-GENESIS', 'COMMAND DECK'];
+const SCENES = ['FRACTAL FLAME', 'VOID PULSE', 'TRON GRID', 'PARTICLE FIELD', 'WAVEFORM BARS', 'PLASMA WARP', 'NEURAL WEB', 'AURORA BOREALIS', 'DNA HELIX', 'COSMIC MANDALA', 'ELECTRIC SHEEP', 'BIO-GENESIS', 'COMMAND DECK', 'VOID PULSE II', 'NEURAL WEB II', 'DNA HELIX II'];
 let vizAutoRotate = false;
 let vizAutoRotateInterval = 60000;
 let vizAutoRotateTimer = null;
@@ -1919,6 +2094,470 @@ function initAudioContext() {
     console.error('Web Audio init failed:', e);
     audioCtx = null;
     analyser = null;
+  }
+}
+
+// ============ BINAURAL BEATS GENERATOR ============
+let binauralOscL = null, binauralOscR = null;
+let binauralGain = null;
+let binauralPanL = null, binauralPanR = null;
+let binauralActive = false;
+let binauralBaseFreq = 200;
+let binauralBeatFreq = 10;
+let binauralVolume = 0.3;
+let binauralMixWithMusic = false;
+
+const BINAURAL_PRESETS = [
+  { name: 'Delta',  beat: 2,  base: 150, purpose: 'Deep Sleep' },
+  { name: 'Theta',  beat: 6,  base: 200, purpose: 'Meditation' },
+  { name: 'Alpha',  beat: 10, base: 200, purpose: 'Relaxation / Focus' },
+  { name: 'Beta',   beat: 20, base: 250, purpose: 'Alertness' },
+  { name: 'Gamma',  beat: 40, base: 300, purpose: 'Peak Cognition' },
+];
+
+function startBinaural(baseFreq, beatFreq) {
+  initAudioContext();
+  if (!audioCtx) return;
+  stopBinaural();
+  binauralBaseFreq = baseFreq;
+  binauralBeatFreq = beatFreq;
+
+  binauralGain = audioCtx.createGain();
+  binauralGain.gain.value = binauralVolume;
+
+  binauralPanL = audioCtx.createStereoPanner();
+  binauralPanL.pan.value = -1;
+  binauralPanR = audioCtx.createStereoPanner();
+  binauralPanR.pan.value = 1;
+
+  binauralOscL = audioCtx.createOscillator();
+  binauralOscL.type = 'sine';
+  binauralOscL.frequency.value = baseFreq;
+
+  binauralOscR = audioCtx.createOscillator();
+  binauralOscR.type = 'sine';
+  binauralOscR.frequency.value = baseFreq + beatFreq;
+
+  binauralOscL.connect(binauralPanL);
+  binauralPanL.connect(binauralGain);
+  binauralOscR.connect(binauralPanR);
+  binauralPanR.connect(binauralGain);
+
+  // Connect to analyser so visualizers react
+  binauralGain.connect(analyser);
+  if (!binauralMixWithMusic) {
+    // Disconnect music from analyser, keep binaural only
+    try { eqFilters[eqFilters.length - 1].disconnect(analyser); } catch(e) {}
+  }
+
+  binauralOscL.start();
+  binauralOscR.start();
+  binauralActive = true;
+  updateBinauralUI();
+}
+
+function stopBinaural() {
+  if (binauralOscL) { try { binauralOscL.stop(); } catch(e) {} binauralOscL = null; }
+  if (binauralOscR) { try { binauralOscR.stop(); } catch(e) {} binauralOscR = null; }
+  if (binauralGain) { try { binauralGain.disconnect(); } catch(e) {} binauralGain = null; }
+  if (binauralPanL) { try { binauralPanL.disconnect(); } catch(e) {} binauralPanL = null; }
+  if (binauralPanR) { try { binauralPanR.disconnect(); } catch(e) {} binauralPanR = null; }
+  // Reconnect music to analyser
+  if (eqFilters.length > 0 && analyser) {
+    try { eqFilters[eqFilters.length - 1].connect(analyser); } catch(e) {}
+  }
+  binauralActive = false;
+  updateBinauralUI();
+}
+
+function updateBinauralFreqs(baseFreq, beatFreq) {
+  binauralBaseFreq = baseFreq;
+  binauralBeatFreq = beatFreq;
+  if (binauralOscL) binauralOscL.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+  if (binauralOscR) binauralOscR.frequency.setValueAtTime(baseFreq + beatFreq, audioCtx.currentTime);
+  updateBinauralUI();
+}
+
+function updateBinauralVolume(vol) {
+  binauralVolume = vol;
+  if (binauralGain) binauralGain.gain.setValueAtTime(vol, audioCtx.currentTime);
+}
+
+function toggleBinauralMix(mix) {
+  binauralMixWithMusic = mix;
+  if (!binauralActive || !analyser) return;
+  if (mix) {
+    try { eqFilters[eqFilters.length - 1].connect(analyser); } catch(e) {}
+  } else {
+    try { eqFilters[eqFilters.length - 1].disconnect(analyser); } catch(e) {}
+  }
+}
+
+function updateBinauralUI() {
+  const freqL = document.getElementById('binauralFreqL');
+  const freqR = document.getElementById('binauralFreqR');
+  const freqBeat = document.getElementById('binauralFreqBeat');
+  const playBtn = document.getElementById('binauralPlayBtn');
+  const status = document.getElementById('binauralStatus');
+  if (freqL) freqL.textContent = binauralBaseFreq.toFixed(1) + ' Hz';
+  if (freqR) freqR.textContent = (binauralBaseFreq + binauralBeatFreq).toFixed(1) + ' Hz';
+  if (freqBeat) freqBeat.textContent = binauralBeatFreq.toFixed(1) + ' Hz';
+  if (playBtn) {
+    playBtn.classList.toggle('active', binauralActive);
+    playBtn.innerHTML = binauralActive
+      ? '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>STOP'
+      : '<svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>PLAY';
+  }
+  if (status) {
+    status.className = 'binaural-status' + (binauralActive ? ' active' : '');
+    status.textContent = binauralActive
+      ? `Active — L: ${binauralBaseFreq.toFixed(1)} Hz  R: ${(binauralBaseFreq + binauralBeatFreq).toFixed(1)} Hz  Beat: ${binauralBeatFreq.toFixed(1)} Hz`
+      : 'Inactive — Select a preset or adjust sliders and press Play';
+  }
+  // Update slider values if they exist
+  const baseVal = document.getElementById('binauralBaseVal');
+  const beatVal = document.getElementById('binauralBeatVal');
+  const volVal = document.getElementById('binauralVolVal');
+  if (baseVal) baseVal.textContent = binauralBaseFreq.toFixed(0) + ' Hz';
+  if (beatVal) beatVal.textContent = binauralBeatFreq.toFixed(1) + ' Hz';
+  if (volVal) volVal.textContent = Math.round(binauralVolume * 100) + '%';
+}
+
+// ============ RHYTHMIC BRAINWAVE LAYER ENGINE ============
+const RHYTHM_DIVISIONS = [
+  { id: 'whole',    label: '1 bar',    beatsPerMeasure: 1,  desc: 'Once per measure' },
+  { id: 'half',     label: '1/2',      beatsPerMeasure: 2,  desc: 'Half notes' },
+  { id: 'quarter',  label: '1/4',      beatsPerMeasure: 4,  desc: 'Quarter notes' },
+  { id: 'eighth',   label: '1/8',      beatsPerMeasure: 8,  desc: 'Eighth notes' },
+  { id: 'triplet',  label: 'triplet',  beatsPerMeasure: 3,  desc: 'Triplets per measure' },
+  { id: 'sixtuplet',label: '6-tuplet', beatsPerMeasure: 6,  desc: '6 per measure' },
+  { id: 'sixteenth',label: '1/16',     beatsPerMeasure: 16, desc: 'Sixteenth notes' },
+];
+
+const RHYTHM_PRESETS = [
+  {
+    name: 'Deep Meditation',
+    desc: 'Delta whole + Theta halves',
+    bpm: 60,
+    layers: [
+      { preset: 0, division: 'whole', volume: 0.3 },
+      { preset: 1, division: 'half', volume: 0.25 },
+    ]
+  },
+  {
+    name: 'Focus Flow',
+    desc: 'Alpha quarters + Beta eighths',
+    bpm: 80,
+    layers: [
+      { preset: 2, division: 'quarter', volume: 0.3 },
+      { preset: 3, division: 'eighth', volume: 0.15 },
+    ]
+  },
+  {
+    name: 'Lucid Dream',
+    desc: 'Delta whole + Theta quarter + Alpha triplet',
+    bpm: 50,
+    layers: [
+      { preset: 0, division: 'whole', volume: 0.35 },
+      { preset: 1, division: 'quarter', volume: 0.2 },
+      { preset: 2, division: 'triplet', volume: 0.15 },
+    ]
+  },
+  {
+    name: 'Peak Performance',
+    desc: 'Alpha half + Beta quarter + Gamma eighth',
+    bpm: 100,
+    layers: [
+      { preset: 2, division: 'half', volume: 0.2 },
+      { preset: 3, division: 'quarter', volume: 0.25 },
+      { preset: 4, division: 'eighth', volume: 0.15 },
+    ]
+  },
+  {
+    name: 'Shamanic Journey',
+    desc: 'Theta whole + Delta triplet + Gamma sixteenths',
+    bpm: 55,
+    layers: [
+      { preset: 1, division: 'whole', volume: 0.35 },
+      { preset: 0, division: 'triplet', volume: 0.2 },
+      { preset: 4, division: 'sixteenth', volume: 0.1 },
+    ]
+  },
+];
+
+let rhythmLayers = [];
+let rhythmBPM = 72;
+let rhythmActive = false;
+let rhythmSchedulerTimer = null;
+let rhythmMasterGain = null;
+let rhythmLayerIdCounter = 0;
+let rhythmBeatVizTimer = null;
+let rhythmMeasureStartTime = 0;
+const RHYTHM_LOOKAHEAD = 0.15;
+const RHYTHM_INTERVAL = 25;
+
+// Color per brainwave for layer badges
+const BRAINWAVE_COLORS = ['#6366f1','#8b5cf6','#a78bfa','#f59e0b','#ef4444'];
+
+function addRhythmLayer(presetIdx = 2, divisionId = 'quarter') {
+  const id = ++rhythmLayerIdCounter;
+  const div = RHYTHM_DIVISIONS.find(d => d.id === divisionId) || RHYTHM_DIVISIONS[2];
+  rhythmLayers.push({
+    id,
+    preset: presetIdx,
+    divisionId: div.id,
+    beatsPerMeasure: div.beatsPerMeasure,
+    volume: 0.25,
+    oscL: null, oscR: null, panL: null, panR: null, gain: null,
+    nextPulseTime: 0,
+  });
+  renderRhythmLayers();
+  return id;
+}
+
+function removeRhythmLayer(layerId) {
+  const idx = rhythmLayers.findIndex(l => l.id === layerId);
+  if (idx === -1) return;
+  destroyLayerNodes(rhythmLayers[idx]);
+  rhythmLayers.splice(idx, 1);
+  renderRhythmLayers();
+}
+
+function updateRhythmLayerPreset(layerId, presetIdx) {
+  const layer = rhythmLayers.find(l => l.id === layerId);
+  if (!layer) return;
+  layer.preset = presetIdx;
+  if (rhythmActive && layer.oscL) {
+    const p = BINAURAL_PRESETS[presetIdx];
+    layer.oscL.frequency.setValueAtTime(p.base, audioCtx.currentTime);
+    layer.oscR.frequency.setValueAtTime(p.base + p.beat, audioCtx.currentTime);
+  }
+}
+
+function updateRhythmLayerDivision(layerId, divisionId) {
+  const layer = rhythmLayers.find(l => l.id === layerId);
+  if (!layer) return;
+  const div = RHYTHM_DIVISIONS.find(d => d.id === divisionId);
+  if (!div) return;
+  layer.divisionId = div.id;
+  layer.beatsPerMeasure = div.beatsPerMeasure;
+  // Recalculate next pulse time from measure start
+  if (rhythmActive && audioCtx) {
+    const measureDur = (60 / rhythmBPM) * 4;
+    const pulseDur = measureDur / layer.beatsPerMeasure;
+    const elapsed = audioCtx.currentTime - rhythmMeasureStartTime;
+    const nextPulseInMeasure = Math.ceil(elapsed / pulseDur) * pulseDur;
+    layer.nextPulseTime = rhythmMeasureStartTime + nextPulseInMeasure;
+  }
+}
+
+function updateRhythmLayerVolume(layerId, vol) {
+  const layer = rhythmLayers.find(l => l.id === layerId);
+  if (layer) layer.volume = vol;
+}
+
+function createLayerNodes(layer) {
+  const p = BINAURAL_PRESETS[layer.preset];
+  layer.gain = audioCtx.createGain();
+  layer.gain.gain.value = 0;
+  layer.panL = audioCtx.createStereoPanner();
+  layer.panL.pan.value = -1;
+  layer.panR = audioCtx.createStereoPanner();
+  layer.panR.pan.value = 1;
+  layer.oscL = audioCtx.createOscillator();
+  layer.oscL.type = 'sine';
+  layer.oscL.frequency.value = p.base;
+  layer.oscR = audioCtx.createOscillator();
+  layer.oscR.type = 'sine';
+  layer.oscR.frequency.value = p.base + p.beat;
+  layer.oscL.connect(layer.panL);
+  layer.panL.connect(layer.gain);
+  layer.oscR.connect(layer.panR);
+  layer.panR.connect(layer.gain);
+  layer.gain.connect(rhythmMasterGain);
+  layer.oscL.start();
+  layer.oscR.start();
+}
+
+function destroyLayerNodes(layer) {
+  if (layer.oscL) { try { layer.oscL.stop(); } catch(e) {} layer.oscL = null; }
+  if (layer.oscR) { try { layer.oscR.stop(); } catch(e) {} layer.oscR = null; }
+  if (layer.gain) { try { layer.gain.disconnect(); } catch(e) {} layer.gain = null; }
+  if (layer.panL) { try { layer.panL.disconnect(); } catch(e) {} layer.panL = null; }
+  if (layer.panR) { try { layer.panR.disconnect(); } catch(e) {} layer.panR = null; }
+}
+
+function startRhythm() {
+  initAudioContext();
+  if (!audioCtx) return;
+  if (rhythmLayers.length === 0) {
+    showToast('Add at least one brainwave layer first');
+    return;
+  }
+  stopRhythm();
+
+  rhythmMasterGain = audioCtx.createGain();
+  rhythmMasterGain.gain.value = 0.5;
+  rhythmMasterGain.connect(analyser);
+  if (!binauralMixWithMusic) {
+    try { eqFilters[eqFilters.length - 1].disconnect(analyser); } catch(e) {}
+  }
+
+  const now = audioCtx.currentTime + 0.05;
+  rhythmMeasureStartTime = now;
+  rhythmLayers.forEach(layer => {
+    createLayerNodes(layer);
+    layer.nextPulseTime = now;
+  });
+
+  rhythmActive = true;
+  rhythmSchedulerTimer = setInterval(rhythmScheduler, RHYTHM_INTERVAL);
+  startRhythmBeatViz();
+  updateRhythmUI();
+  showToast('Rhythmic brainwave engine started');
+}
+
+function stopRhythm() {
+  if (rhythmSchedulerTimer) { clearInterval(rhythmSchedulerTimer); rhythmSchedulerTimer = null; }
+  if (rhythmBeatVizTimer) { clearInterval(rhythmBeatVizTimer); rhythmBeatVizTimer = null; }
+  rhythmLayers.forEach(layer => destroyLayerNodes(layer));
+  if (rhythmMasterGain) { try { rhythmMasterGain.disconnect(); } catch(e) {} rhythmMasterGain = null; }
+  if (eqFilters.length > 0 && analyser) {
+    try { eqFilters[eqFilters.length - 1].connect(analyser); } catch(e) {}
+  }
+  rhythmActive = false;
+  updateRhythmUI();
+}
+
+function rhythmScheduler() {
+  if (!audioCtx || !rhythmActive) return;
+  const deadline = audioCtx.currentTime + RHYTHM_LOOKAHEAD;
+  const measureDuration = (60 / rhythmBPM) * 4;
+
+  rhythmLayers.forEach(layer => {
+    if (!layer.gain) return;
+    const pulseDuration = measureDuration / layer.beatsPerMeasure;
+
+    while (layer.nextPulseTime < deadline) {
+      schedulePulse(layer, layer.nextPulseTime, pulseDuration);
+      layer.nextPulseTime += pulseDuration;
+    }
+  });
+}
+
+function schedulePulse(layer, time, duration) {
+  if (!layer.gain) return;
+  const attack = Math.min(0.04, duration * 0.08);
+  const sustain = duration * 0.55;
+  const release = Math.min(duration * 0.35, 0.5);
+  const g = layer.gain.gain;
+  // Cancel any previous scheduled values for clean transitions
+  g.cancelScheduledValues(time);
+  g.setValueAtTime(0, time);
+  g.linearRampToValueAtTime(layer.volume, time + attack);
+  g.setValueAtTime(layer.volume, time + attack + sustain);
+  g.linearRampToValueAtTime(0, time + attack + sustain + release);
+}
+
+function startRhythmBeatViz() {
+  if (rhythmBeatVizTimer) clearInterval(rhythmBeatVizTimer);
+  rhythmBeatVizTimer = setInterval(() => {
+    if (!rhythmActive || !audioCtx) return;
+    const now = audioCtx.currentTime;
+    const measureDur = (60 / rhythmBPM) * 4;
+    const beatDur = measureDur / 4;
+    const elapsed = now - rhythmMeasureStartTime;
+    const measurePos = ((elapsed % measureDur) + measureDur) % measureDur;
+    const currentBeat = Math.floor(measurePos / beatDur);
+
+    // Update beat dots
+    document.querySelectorAll('.rhythm-beat-dot').forEach((dot, i) => {
+      dot.classList.toggle('on', i === currentBeat);
+      dot.classList.toggle('accent', i === currentBeat && i === 0);
+    });
+
+    // Update layer pulse indicators
+    rhythmLayers.forEach(layer => {
+      const indicator = document.getElementById('rhythmLayerInd_' + layer.id);
+      if (!indicator) return;
+      const pulseDur = measureDur / layer.beatsPerMeasure;
+      const pulsePos = measurePos % pulseDur;
+      const isOn = pulsePos < pulseDur * 0.4;
+      indicator.classList.toggle('on', isOn);
+    });
+  }, 50);
+}
+
+function applyRhythmPreset(index) {
+  const rp = RHYTHM_PRESETS[index];
+  // Stop if running
+  if (rhythmActive) stopRhythm();
+  // Clear existing layers
+  rhythmLayers = [];
+  rhythmLayerIdCounter = 0;
+  rhythmBPM = rp.bpm;
+  // Add layers from preset
+  rp.layers.forEach(l => {
+    const id = ++rhythmLayerIdCounter;
+    const div = RHYTHM_DIVISIONS.find(d => d.id === l.division) || RHYTHM_DIVISIONS[2];
+    rhythmLayers.push({
+      id, preset: l.preset, divisionId: div.id,
+      beatsPerMeasure: div.beatsPerMeasure, volume: l.volume,
+      oscL: null, oscR: null, panL: null, panR: null, gain: null, nextPulseTime: 0,
+    });
+  });
+  // Update UI
+  const bpmSlider = document.getElementById('rhythmBpmSlider');
+  const bpmVal = document.getElementById('rhythmBpmVal');
+  if (bpmSlider) bpmSlider.value = rhythmBPM;
+  if (bpmVal) bpmVal.textContent = rhythmBPM + ' BPM';
+  document.querySelectorAll('.rhythm-preset-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === index);
+  });
+  renderRhythmLayers();
+  // Auto-start
+  startRhythm();
+}
+
+function renderRhythmLayers() {
+  const container = document.getElementById('rhythmLayersContainer');
+  if (!container) return;
+
+  const presetOptions = BINAURAL_PRESETS.map((p, i) =>
+    `<option value="${i}">${p.name} (${p.beat}Hz)</option>`
+  ).join('');
+  const divOptions = RHYTHM_DIVISIONS.map(d =>
+    `<option value="${d.id}">${d.label}</option>`
+  ).join('');
+
+  container.innerHTML = rhythmLayers.map((layer, idx) => {
+    const p = BINAURAL_PRESETS[layer.preset];
+    const bgColor = BRAINWAVE_COLORS[layer.preset] || '#7B2FBE';
+    return `<div class="rhythm-layer-card" id="rhythmLayerCard_${layer.id}">
+      <div class="rhythm-layer-indicator" id="rhythmLayerInd_${layer.id}"></div>
+      <div class="rhythm-layer-num">${idx + 1}</div>
+      <div class="rhythm-layer-badge" style="background:${bgColor}22;color:${bgColor};border:1px solid ${bgColor}44;">${escHtml(p.name)}</div>
+      <select class="rhythm-layer-select" onchange="updateRhythmLayerPreset(${layer.id},+this.value)" title="Brainwave">
+        ${BINAURAL_PRESETS.map((p2,i) => `<option value="${i}" ${i===layer.preset?'selected':''}>${p2.name} (${p2.beat}Hz)</option>`).join('')}
+      </select>
+      <select class="rhythm-layer-select" onchange="updateRhythmLayerDivision(${layer.id},this.value)" title="Rhythm">
+        ${RHYTHM_DIVISIONS.map(d => `<option value="${d.id}" ${d.id===layer.divisionId?'selected':''}>${d.label}</option>`).join('')}
+      </select>
+      <input type="range" class="binaural-slider rhythm-layer-vol" min="0" max="0.5" step="0.01" value="${layer.volume}"
+        oninput="updateRhythmLayerVolume(${layer.id},+this.value);this.nextElementSibling.textContent=Math.round(this.value*200)+'%'" title="Layer volume">
+      <div class="rhythm-layer-vol-label">${Math.round(layer.volume * 200)}%</div>
+      <button class="rhythm-layer-remove" onclick="removeRhythmLayer(${layer.id})" title="Remove layer">&times;</button>
+    </div>`;
+  }).join('');
+}
+
+function updateRhythmUI() {
+  const playBtn = document.getElementById('rhythmPlayBtn');
+  if (playBtn) {
+    playBtn.classList.toggle('active', rhythmActive);
+    playBtn.innerHTML = rhythmActive
+      ? '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>STOP'
+      : '<svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>START';
   }
 }
 
@@ -2826,6 +3465,177 @@ async function loadGenreDetail(genreName) {
   setTimeout(() => dc.classList.remove('content-fade-in'), 300);
 }
 
+// ============ BINAURAL BEATS VIEW ============
+async function loadBinauralView() {
+  const dc = document.getElementById('dynamicContent');
+  dc.classList.add('content-fade-out');
+  await new Promise(r => setTimeout(r, 150));
+
+  const presetsHTML = BINAURAL_PRESETS.map((p, i) =>
+    `<div class="binaural-preset-btn" data-preset="${i}" onclick="applyBinauralPreset(${i})">
+      <div class="binaural-preset-name">${escHtml(p.name)}</div>
+      <div class="binaural-preset-info">${p.beat} Hz beat · ${p.base} Hz base</div>
+      <div class="binaural-preset-info">${escHtml(p.purpose)}</div>
+    </div>`
+  ).join('');
+
+  const rhythmPresetsHTML = RHYTHM_PRESETS.map((rp, i) =>
+    `<div class="rhythm-preset-btn" onclick="applyRhythmPreset(${i})">
+      <div class="rhythm-preset-name">${escHtml(rp.name)}</div>
+      <div class="rhythm-preset-desc">${escHtml(rp.desc)} · ${rp.bpm} BPM</div>
+    </div>`
+  ).join('');
+
+  dc.innerHTML = `
+    <div class="binaural-view">
+      <div style="text-align:center;margin-bottom:8px;">
+        <div style="font-family:var(--font-display);font-size:1.8rem;font-weight:800;letter-spacing:4px;background:linear-gradient(135deg,var(--purple-vivid),var(--magenta-bright),var(--cyan-bright));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;line-height:1.2;">RHYTHMIC BINAURAL</div>
+        <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;letter-spacing:6px;color:var(--cyan-bright);text-shadow:0 0 20px rgba(0,220,245,0.4);margin-top:2px;">BRAINWAVE LAYERING ENGINE</div>
+        <div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--purple-muted);letter-spacing:2px;margin-top:6px;">MULTI-LAYER NEURAL ENTRAINMENT SYSTEM</div>
+      </div>
+      <div class="binaural-headphone-note" style="text-align:center;">&#x1F3A7; Use headphones — each ear receives a different frequency to produce the binaural effect</div>
+
+      <!-- ═══ SINGLE TONE MODE ═══ -->
+      <div style="font-family:var(--font-display);font-size:0.8rem;color:var(--purple-hot);letter-spacing:2px;margin:20px 0 12px;border-bottom:1px solid var(--purple-dim);padding-bottom:6px;">SINGLE TONE</div>
+
+      <div class="binaural-presets">${presetsHTML}</div>
+
+      <div class="binaural-freq-display">
+        <div class="binaural-freq-item">
+          <div class="binaural-freq-label">Left Ear</div>
+          <div class="binaural-freq-val" id="binauralFreqL">${binauralBaseFreq.toFixed(1)} Hz</div>
+        </div>
+        <div class="binaural-freq-item">
+          <div class="binaural-freq-label">Beat Freq</div>
+          <div class="binaural-freq-val" id="binauralFreqBeat">${binauralBeatFreq.toFixed(1)} Hz</div>
+        </div>
+        <div class="binaural-freq-item">
+          <div class="binaural-freq-label">Right Ear</div>
+          <div class="binaural-freq-val" id="binauralFreqR">${(binauralBaseFreq + binauralBeatFreq).toFixed(1)} Hz</div>
+        </div>
+      </div>
+
+      <div class="binaural-controls">
+        <div class="binaural-slider-group">
+          <div class="binaural-slider-label">
+            <span>Base Frequency</span>
+            <span class="binaural-slider-value" id="binauralBaseVal">${binauralBaseFreq.toFixed(0)} Hz</span>
+          </div>
+          <input type="range" class="binaural-slider" id="binauralBaseSlider" min="100" max="500" step="1" value="${binauralBaseFreq}"
+            oninput="binauralBaseFreq=+this.value; updateBinauralFreqs(binauralBaseFreq, binauralBeatFreq); clearActivePreset();">
+        </div>
+        <div class="binaural-slider-group">
+          <div class="binaural-slider-label">
+            <span>Beat Frequency</span>
+            <span class="binaural-slider-value" id="binauralBeatVal">${binauralBeatFreq.toFixed(1)} Hz</span>
+          </div>
+          <input type="range" class="binaural-slider" id="binauralBeatSlider" min="1" max="50" step="0.5" value="${binauralBeatFreq}"
+            oninput="binauralBeatFreq=+this.value; updateBinauralFreqs(binauralBaseFreq, binauralBeatFreq); clearActivePreset();">
+        </div>
+        <div class="binaural-slider-group">
+          <div class="binaural-slider-label">
+            <span>Volume</span>
+            <span class="binaural-slider-value" id="binauralVolVal">${Math.round(binauralVolume * 100)}%</span>
+          </div>
+          <input type="range" class="binaural-slider" id="binauralVolSlider" min="0" max="1" step="0.01" value="${binauralVolume}"
+            oninput="updateBinauralVolume(+this.value); document.getElementById('binauralVolVal').textContent=Math.round(this.value*100)+'%';">
+        </div>
+      </div>
+
+      <div class="binaural-actions">
+        <button class="binaural-play-btn ${binauralActive ? 'active' : ''}" id="binauralPlayBtn" onclick="if(binauralActive){stopBinaural();}else{startBinaural(binauralBaseFreq,binauralBeatFreq);}">
+          ${binauralActive
+            ? '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>STOP'
+            : '<svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>PLAY'}
+        </button>
+        <label class="binaural-mix-toggle">
+          <input type="checkbox" id="binauralMixCheck" ${binauralMixWithMusic ? 'checked' : ''} onchange="toggleBinauralMix(this.checked);">
+          Mix with music
+        </label>
+      </div>
+
+      <div class="binaural-status ${binauralActive ? 'active' : ''}" id="binauralStatus">
+        ${binauralActive
+          ? 'Active — L: ' + binauralBaseFreq.toFixed(1) + ' Hz  R: ' + (binauralBaseFreq + binauralBeatFreq).toFixed(1) + ' Hz  Beat: ' + binauralBeatFreq.toFixed(1) + ' Hz'
+          : 'Inactive — Select a preset or adjust sliders and press Play'}
+      </div>
+
+      <!-- ═══ RHYTHM LAYER ENGINE ═══ -->
+      <div class="rhythm-section">
+        <div class="rhythm-header">
+          <h3>RHYTHM LAYERS</h3>
+          <div style="font-family:var(--font-mono);font-size:0.6rem;color:var(--magenta-muted);">Stack brainwaves at different rhythmic divisions</div>
+        </div>
+        <div class="rhythm-subtitle">Layer multiple binaural frequencies pulsing at different rhythmic intervals — Delta on whole notes, Theta on quarters, Gamma on eighths — your brain, your patterns</div>
+
+        <div class="rhythm-presets">${rhythmPresetsHTML}</div>
+
+        <div class="rhythm-bpm-row">
+          <div class="rhythm-bpm-label">BPM</div>
+          <input type="range" class="binaural-slider rhythm-bpm-slider" id="rhythmBpmSlider" min="30" max="180" step="1" value="${rhythmBPM}"
+            oninput="rhythmBPM=+this.value; document.getElementById('rhythmBpmVal').textContent=this.value+' BPM';">
+          <div class="rhythm-bpm-val" id="rhythmBpmVal">${rhythmBPM} BPM</div>
+        </div>
+
+        <div class="rhythm-beat-viz">
+          <div class="rhythm-beat-dot"></div>
+          <div class="rhythm-beat-dot"></div>
+          <div class="rhythm-beat-dot"></div>
+          <div class="rhythm-beat-dot"></div>
+        </div>
+
+        <div class="rhythm-layers-container" id="rhythmLayersContainer"></div>
+
+        <button class="rhythm-add-btn" onclick="addRhythmLayer()">+ Add Brainwave Layer</button>
+
+        <div class="rhythm-actions">
+          <button class="rhythm-play-btn ${rhythmActive ? 'active' : ''}" id="rhythmPlayBtn" onclick="if(rhythmActive){stopRhythm();}else{startRhythm();}">
+            ${rhythmActive
+              ? '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>STOP'
+              : '<svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>START'}
+          </button>
+          <label class="binaural-mix-toggle">
+            <input type="checkbox" ${binauralMixWithMusic ? 'checked' : ''} onchange="toggleBinauralMix(this.checked);">
+            Mix with music
+          </label>
+        </div>
+      </div>
+    </div>`;
+
+  renderRhythmLayers();
+  if (rhythmActive) startRhythmBeatViz();
+
+  dc.classList.remove('content-fade-out');
+  dc.classList.add('content-fade-in');
+  setTimeout(() => dc.classList.remove('content-fade-in'), 300);
+}
+
+function applyBinauralPreset(index) {
+  const p = BINAURAL_PRESETS[index];
+  binauralBaseFreq = p.base;
+  binauralBeatFreq = p.beat;
+  // Update sliders
+  const baseSlider = document.getElementById('binauralBaseSlider');
+  const beatSlider = document.getElementById('binauralBeatSlider');
+  if (baseSlider) baseSlider.value = p.base;
+  if (beatSlider) beatSlider.value = p.beat;
+  // Highlight active preset
+  document.querySelectorAll('.binaural-preset-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === index);
+  });
+  // If already playing, update live
+  if (binauralActive) {
+    updateBinauralFreqs(p.base, p.beat);
+  } else {
+    startBinaural(p.base, p.beat);
+  }
+  updateBinauralUI();
+}
+
+function clearActivePreset() {
+  document.querySelectorAll('.binaural-preset-btn').forEach(btn => btn.classList.remove('active'));
+}
+
 document.querySelectorAll('.nav-item[data-view]').forEach(item => {
   item.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -2837,6 +3647,7 @@ document.querySelectorAll('.nav-item[data-view]').forEach(item => {
     else if (view === 'albums') loadAlbumsView();
     else if (view === 'artists') loadArtistsView();
     else if (view === 'genres') loadGenresView();
+    else if (view === 'binaural') loadBinauralView();
   });
 });
 
@@ -2995,7 +3806,7 @@ function scanSheepFolder(folderPath) {
   sheepFolder = folderPath;
   if (window.electronAPI && window.electronAPI.scanSheepFolder) {
     const files = window.electronAPI.scanSheepFolder(folderPath);
-    sheepVideos = (files || []).map(f => 'file:///' + f);
+    sheepVideos = (files || []).map(f => 'file:///' + encodeURI(f).replace(/#/g, '%23'));
     showToast(`Electric Sheep: ${sheepVideos.length} video${sheepVideos.length === 1 ? '' : 's'} loaded`);
   } else {
     showToast('Electric Sheep: folder scan not available');
@@ -3028,7 +3839,7 @@ document.getElementById('settSheepAddFiles').addEventListener('click', async () 
     const files = await window.electronAPI.openFilesDialog('Select Video Files', ['mp4', 'webm', 'mkv', 'avi', 'mov', 'm4v']);
     if (files && files.length > 0) {
       files.forEach(f => {
-        sheepVideos.push('file:///' + f.replace(/\\/g, '/'));
+        sheepVideos.push('file:///' + encodeURI(f.replace(/\\/g, '/')).replace(/#/g, '%23'));
       });
       showToast(`Electric Sheep: added ${files.length} video${files.length === 1 ? '' : 's'}`);
       updateSheepStatus();
@@ -3062,9 +3873,46 @@ document.getElementById('settSheepClear').addEventListener('click', () => {
 
 // ============ FILTER ============
 document.getElementById('filterInput').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase().trim();
+
+  // Filter track list
   const trackList = document.getElementById('trackList');
   if (trackList && currentQueue.length) {
     renderTrackList(currentQueue, 'trackList', e.target.value);
+    return;
+  }
+
+  // Filter artist list
+  const artistsList = document.getElementById('artistsList');
+  if (artistsList) {
+    const rows = artistsList.querySelectorAll('.track-row');
+    rows.forEach(row => {
+      const name = (row.querySelector('.track-title')?.textContent || '').toLowerCase();
+      row.style.display = !q || name.includes(q) ? '' : 'none';
+    });
+    return;
+  }
+
+  // Filter album grid
+  const albumGrid = document.querySelector('.album-grid');
+  if (albumGrid) {
+    const cards = albumGrid.querySelectorAll('.album-card');
+    cards.forEach(card => {
+      const title = (card.querySelector('.album-title')?.textContent || '').toLowerCase();
+      const artist = (card.querySelector('.album-artist')?.textContent || '').toLowerCase();
+      card.style.display = !q || title.includes(q) || artist.includes(q) ? '' : 'none';
+    });
+    return;
+  }
+
+  // Filter genre cards
+  const genreGrid = document.getElementById('genreGrid');
+  if (genreGrid) {
+    const cards = genreGrid.querySelectorAll('.genre-card');
+    cards.forEach(card => {
+      const name = (card.textContent || '').toLowerCase();
+      card.style.display = !q || name.includes(q) ? '' : 'none';
+    });
   }
 });
 
@@ -3102,6 +3950,26 @@ document.addEventListener('keydown', (e) => {
     case 'ArrowRight': if (audio.duration) { audio.currentTime = Math.min(audio.duration, audio.currentTime + 5); } break;
     case 'ArrowUp': e.preventDefault(); audio.volume = Math.min(1, audio.volume + 0.05); document.getElementById('volumeSlider').value = audio.volume * 100; break;
     case 'ArrowDown': e.preventDefault(); audio.volume = Math.max(0, audio.volume - 0.05); document.getElementById('volumeSlider').value = audio.volume * 100; break;
+    case 'KeyN':
+      // Cycle to next sheep video when on Electric Sheep scene
+      if (currentScene === 10 && sheepVideos.length > 0) {
+        const sv = document.getElementById('sheepVideo');
+        sheepVideoIdx = (sheepVideoIdx + 1) % sheepVideos.length;
+        sv.src = sheepVideos[sheepVideoIdx];
+        sv.play().catch(() => {});
+        showToast(`Sheep: ${sheepVideoIdx + 1} / ${sheepVideos.length}`);
+      }
+      break;
+    case 'KeyP':
+      // Cycle to previous sheep video when on Electric Sheep scene
+      if (currentScene === 10 && sheepVideos.length > 0) {
+        const sv = document.getElementById('sheepVideo');
+        sheepVideoIdx = (sheepVideoIdx - 1 + sheepVideos.length) % sheepVideos.length;
+        sv.src = sheepVideos[sheepVideoIdx];
+        sv.play().catch(() => {});
+        showToast(`Sheep: ${sheepVideoIdx + 1} / ${sheepVideos.length}`);
+      }
+      break;
     case 'Digit1': switchScene(0); break;
     case 'Digit2': switchScene(1); break;
     case 'Digit3': switchScene(2); break;
@@ -3160,7 +4028,7 @@ async function loadSheepVideos(folderPath) {
   if (window.electronAPI && window.electronAPI.scanSheepFolder) {
     try {
       const files = window.electronAPI.scanSheepFolder(folderPath);
-      sheepVideos = (files || []).map(f => 'file:///' + f);
+      sheepVideos = (files || []).map(f => 'file:///' + encodeURI(f).replace(/#/g, '%23'));
       showToast(`Electric Sheep: loaded ${sheepVideos.length} videos`);
     } catch(e) {
       console.error('Electric Sheep scan failed:', e);
@@ -3173,7 +4041,7 @@ async function loadSheepVideos(folderPath) {
 
 // Manual method: add sheep video files
 function addSheepVideo(filePath) {
-  sheepVideos.push('file:///' + filePath.replace(/\\/g, '/'));
+  sheepVideos.push('file:///' + encodeURI(filePath.replace(/\\/g, '/')).replace(/#/g, '%23'));
 }
 
 // Electric Sheep overlay — audio-reactive effects drawn on top of the video
@@ -3235,10 +4103,10 @@ function drawElectricSheepOverlay(ctx, w, h, time) {
 
   // Video is playing — draw audio-reactive overlay on top
   // Cycle to next video when current ends
-  if (sv.ended || sv.paused) {
+  if (sv.ended || (sv.paused && sv.readyState < 3)) {
     sheepVideoIdx = (sheepVideoIdx + 1) % sheepVideos.length;
     sv.src = sheepVideos[sheepVideoIdx];
-    sv.play().catch(() => {});
+    sv.play().catch(e => console.warn('Sheep play error:', e.message, sv.src));
   }
 
   // Semi-transparent canvas for overlay effects
@@ -5917,10 +6785,498 @@ function drawCommandDeck(ctx, w, h, time) {
   }
 }
 
+// ============ SCENE 13: VOID PULSE II — Clean concentric ripples ============
+let voidPulseIIRings = [];
+
+function drawVoidPulseII(ctx, w, h, time) {
+  // Soft trail fade — ghostly ring trails
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+  ctx.fillRect(0, 0, w, h);
+
+  const cx = w / 2, cy = h / 2;
+  const bi = beatIntensity;
+  const minDim = Math.min(w, h);
+
+  // Ring color palette: purple, cyan, magenta
+  const ringColors = [
+    [157, 78, 221],   // purple
+    [0, 220, 245],    // cyan
+    [255, 45, 123],   // magenta
+    [183, 110, 255],  // vivid purple
+    [0, 180, 216],    // deep cyan
+  ];
+
+  // Spawn new rings on beat or periodically
+  const now = time;
+  if (bi > 0.25 || (voidPulseIIRings.length === 0) || (voidPulseIIRings.length < 8 && now % 800 < 16)) {
+    const count = bi > 0.5 ? 3 : 1;
+    for (let i = 0; i < count; i++) {
+      const color = ringColors[Math.floor(Math.random() * ringColors.length)];
+      voidPulseIIRings.push({
+        radius: 5 + i * 8,
+        maxRadius: minDim * (0.5 + Math.random() * 0.3),
+        speed: 1.2 + bi * 2.5 + Math.random() * 0.8,
+        alpha: 0.6 + bi * 0.4,
+        lineWidth: 1 + bi * 2,
+        born: now,
+        wobbleAmp: bands.mid * 8 + bands.high * 4,
+        wobbleFreq: 3 + Math.floor(Math.random() * 5),
+        color: color
+      });
+    }
+  }
+
+  // Center glow — multi-color core
+  const coreR = 30 + bands.bass * 40 + bi * 25;
+  const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
+  coreGrad.addColorStop(0, `rgba(240, 220, 255, ${0.2 + bi * 0.3})`);
+  coreGrad.addColorStop(0.2, `rgba(255, 45, 123, ${0.12 + bi * 0.15})`);
+  coreGrad.addColorStop(0.5, `rgba(157, 78, 221, ${0.08 + bi * 0.1})`);
+  coreGrad.addColorStop(0.8, `rgba(0, 220, 245, ${0.04 + bi * 0.06})`);
+  coreGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = coreGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw and update rings
+  ctx.globalCompositeOperation = 'lighter';
+  voidPulseIIRings = voidPulseIIRings.filter(ring => {
+    ring.radius += ring.speed;
+    const life = 1 - ring.radius / ring.maxRadius;
+    if (life <= 0) return false;
+
+    const alpha = ring.alpha * life * life;
+    const lw = ring.lineWidth * life;
+    const c = ring.color;
+
+    // Frequency-wobbled ring shape
+    ctx.beginPath();
+    const steps = 120;
+    for (let i = 0; i <= steps; i++) {
+      const angle = (i / steps) * Math.PI * 2;
+      const freqIdx = Math.floor((i / steps) * 128);
+      const freqWobble = freqData ? (freqData[freqIdx] || 0) / 255 * ring.wobbleAmp : 0;
+      const wobble = Math.sin(angle * ring.wobbleFreq + time * 0.002) * ring.wobbleAmp * 0.3;
+      const r = ring.radius + freqWobble + wobble;
+      const x = cx + Math.cos(angle) * r;
+      const y = cy + Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+
+    // Glow layer
+    ctx.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha * 0.2})`;
+    ctx.lineWidth = lw * 4;
+    ctx.stroke();
+
+    // Bright layer
+    ctx.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
+    ctx.lineWidth = lw;
+    ctx.stroke();
+
+    return true;
+  });
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Ambient radial glow — cyan/magenta/purple mix
+  const ambientR = minDim * 0.6 + bands.energy * 40;
+  const ambGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, ambientR);
+  ambGrad.addColorStop(0, `rgba(255, 45, 123, ${0.02 + bands.energy * 0.02})`);
+  ambGrad.addColorStop(0.3, `rgba(157, 78, 221, ${0.015 + bands.energy * 0.02})`);
+  ambGrad.addColorStop(0.6, `rgba(0, 220, 245, ${0.01 + bands.bass * 0.015})`);
+  ambGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = ambGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Beat flash — alternating colors
+  if (bi > 0.6) {
+    const flashHue = Math.floor(time * 0.003) % 3;
+    const flashColors = ['rgba(0, 220, 245,', 'rgba(255, 45, 123,', 'rgba(157, 78, 221,'];
+    ctx.fillStyle = flashColors[flashHue] + `${(bi - 0.6) * 0.1})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  vizGlowIntensity = bands.energy * 0.3 + bi * 0.5;
+}
+
+// ============ SCENE 14: NEURAL WEB II — Clean geometric network ============
+let neuralWebIINodes = null;
+let neuralWebIISignals = [];
+let neuralWebIIBeatCooldown = 0;
+
+function initNeuralWebII(w, h) {
+  neuralWebIINodes = [];
+  const count = 60;
+  // Node color palette: purple, cyan, magenta
+  const nodeColors = [
+    [157, 78, 221],   // purple
+    [0, 220, 245],    // cyan
+    [255, 45, 123],   // magenta
+    [183, 110, 255],  // vivid purple
+  ];
+  for (let i = 0; i < count; i++) {
+    neuralWebIINodes.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      baseSize: 2 + Math.random() * 3,
+      size: 2 + Math.random() * 3,
+      pulse: 0,
+      brightness: 0.4 + Math.random() * 0.6,
+      color: nodeColors[Math.floor(Math.random() * nodeColors.length)]
+    });
+  }
+  neuralWebIISignals = [];
+}
+
+function drawNeuralWebII(ctx, w, h, time) {
+  // Trail fade
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.07)';
+  ctx.fillRect(0, 0, w, h);
+
+  if (!neuralWebIINodes) initNeuralWebII(w, h);
+
+  const bi = beatIntensity;
+
+  // Beat: pulse nodes and spawn signals
+  if (bi > 0.4 && neuralWebIIBeatCooldown <= 0) {
+    neuralWebIIBeatCooldown = 12;
+    neuralWebIINodes.forEach(n => {
+      n.pulse = bi;
+    });
+    // Spawn signal pulses
+    for (let s = 0; s < 4; s++) {
+      const fromIdx = Math.floor(Math.random() * neuralWebIINodes.length);
+      neuralWebIISignals.push({
+        fromIdx,
+        toIdx: -1,
+        progress: 0,
+        speed: 0.015 + Math.random() * 0.025,
+        alpha: 0.8 + bi * 0.2
+      });
+    }
+  }
+  if (neuralWebIIBeatCooldown > 0) neuralWebIIBeatCooldown--;
+
+  const maxDist = 120 + bands.energy * 80;
+
+  // Update nodes — slow drift
+  neuralWebIINodes.forEach(n => {
+    n.x += n.vx * (0.8 + bands.energy * 0.5);
+    n.y += n.vy * (0.8 + bands.energy * 0.5);
+
+    // Wrap around edges
+    if (n.x < -20) n.x = w + 20;
+    if (n.x > w + 20) n.x = -20;
+    if (n.y < -20) n.y = h + 20;
+    if (n.y > h + 20) n.y = -20;
+
+    // Beat pulse decay
+    n.pulse *= 0.92;
+    n.size = n.baseSize * (1 + n.pulse * 2.5);
+  });
+
+  // Build connection list for signal routing
+  const connections = [];
+  for (let i = 0; i < neuralWebIINodes.length; i++) {
+    for (let j = i + 1; j < neuralWebIINodes.length; j++) {
+      const a = neuralWebIINodes[i], b = neuralWebIINodes[j];
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < maxDist) {
+        connections.push({ i, j, dist });
+      }
+    }
+  }
+
+  // Draw connections — straight lines only, colored by connected nodes
+  ctx.globalCompositeOperation = 'lighter';
+  connections.forEach(({ i, j, dist }) => {
+    const a = neuralWebIINodes[i], b = neuralWebIINodes[j];
+    const alpha = (1 - dist / maxDist) * (0.1 + bands.energy * 0.3 + bi * 0.2);
+    // Blend colors of connected nodes
+    const c = [
+      Math.floor((a.color[0] + b.color[0]) / 2),
+      Math.floor((a.color[1] + b.color[1]) / 2),
+      Math.floor((a.color[2] + b.color[2]) / 2)
+    ];
+
+    // Glow
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha * 0.25})`;
+    ctx.lineWidth = 3 + (1 - dist / maxDist) * 3;
+    ctx.stroke();
+
+    // Crisp line
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
+    ctx.lineWidth = 0.5 + (1 - dist / maxDist) * 1;
+    ctx.stroke();
+  });
+
+  // Update and draw signals traveling along connections
+  neuralWebIISignals = neuralWebIISignals.filter(sig => {
+    // Find nearest connected node if toIdx not set
+    if (sig.toIdx === -1) {
+      let bestDist = Infinity, bestIdx = -1;
+      const from = neuralWebIINodes[sig.fromIdx];
+      neuralWebIINodes.forEach((n, idx) => {
+        if (idx === sig.fromIdx) return;
+        const dx = from.x - n.x, dy = from.y - n.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < maxDist && d < bestDist) {
+          bestDist = d;
+          bestIdx = idx;
+        }
+      });
+      if (bestIdx === -1) return false;
+      sig.toIdx = bestIdx;
+    }
+
+    sig.progress += sig.speed;
+    if (sig.progress >= 1) return false;
+
+    const from = neuralWebIINodes[sig.fromIdx];
+    const to = neuralWebIINodes[sig.toIdx];
+    const sx = from.x + (to.x - from.x) * sig.progress;
+    const sy = from.y + (to.y - from.y) * sig.progress;
+
+    // Signal glow — pick color from source node
+    const sigColor = neuralWebIINodes[sig.fromIdx].color;
+    const sigR = 6 + bi * 4;
+    const sigGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, sigR);
+    sigGrad.addColorStop(0, `rgba(${sigColor[0]}, ${sigColor[1]}, ${sigColor[2]}, ${sig.alpha * 0.8})`);
+    sigGrad.addColorStop(0.4, `rgba(${sigColor[0]}, ${sigColor[1]}, ${sigColor[2]}, ${sig.alpha * 0.3})`);
+    sigGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = sigGrad;
+    ctx.beginPath();
+    ctx.arc(sx, sy, sigR, 0, Math.PI * 2);
+    ctx.fill();
+
+    return true;
+  });
+
+  // Draw nodes — each with its own color
+  neuralWebIINodes.forEach(n => {
+    const c = n.color;
+    // Node glow
+    const glowR = n.size * 4 + n.pulse * 8;
+    const nodeGrad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, glowR);
+    nodeGrad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${0.15 + n.pulse * 0.3})`);
+    nodeGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = nodeGrad;
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, glowR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Node core — bright white tinted with node color
+    const bright = [
+      Math.min(255, c[0] + 80),
+      Math.min(255, c[1] + 80),
+      Math.min(255, c[2] + 80)
+    ];
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${bright[0]}, ${bright[1]}, ${bright[2]}, ${n.brightness + n.pulse * 0.4})`;
+    ctx.fill();
+  });
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Beat flash — cyan/magenta alternating
+  if (bi > 0.6) {
+    const flashHue = Math.floor(time * 0.004) % 2;
+    ctx.fillStyle = flashHue === 0
+      ? `rgba(0, 220, 245, ${(bi - 0.6) * 0.08})`
+      : `rgba(255, 45, 123, ${(bi - 0.6) * 0.08})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  vizGlowIntensity = bands.energy * 0.3 + bi * 0.5;
+}
+
+// ============ SCENE 15: DNA HELIX II — Vertical double-strand helix ============
+let dnaHelixIIPhase = 0;
+let dnaHelixIIBeatPulse = 0;
+
+function drawDnaHelixII(ctx, w, h, time) {
+  // Trail fade
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+  ctx.fillRect(0, 0, w, h);
+
+  const cx = w / 2, cy = h / 2;
+  const bi = beatIntensity;
+  const t = time * 0.001;
+
+  // Beat pulse
+  if (bi > 0.3) dnaHelixIIBeatPulse = Math.min(1, dnaHelixIIBeatPulse + bi * 0.4);
+  dnaHelixIIBeatPulse *= 0.94;
+
+  // Slow rotation via phase shift
+  dnaHelixIIPhase += 0.008 * (1 + bands.bass * 0.5);
+
+  // Helix parameters
+  const helixAmplitude = Math.min(w, h) * 0.15 + bands.mid * 30;
+  const nodeCount = 40;
+  const verticalSpacing = h / (nodeCount - 1);
+  const wavelength = 6; // number of full waves visible
+
+  // Build strand points
+  const strand1 = [];
+  const strand2 = [];
+
+  for (let i = 0; i < nodeCount; i++) {
+    const y = i * verticalSpacing;
+    const phase = (i / nodeCount) * Math.PI * 2 * wavelength / nodeCount * nodeCount / 6 + dnaHelixIIPhase;
+    const freqIdx = Math.floor((i / nodeCount) * 128);
+    const freqMod = freqData ? (freqData[freqIdx] || 0) / 255 * 15 : 0;
+
+    // Sine wave offset for each strand
+    const offset1 = Math.sin(phase) * (helixAmplitude + freqMod);
+    const offset2 = Math.sin(phase + Math.PI) * (helixAmplitude + freqMod);
+
+    // Depth simulation: cos determines z-position
+    const depth1 = Math.cos(phase) * 0.5 + 0.5; // 0 = far, 1 = near
+    const depth2 = Math.cos(phase + Math.PI) * 0.5 + 0.5;
+
+    strand1.push({ x: cx + offset1, y, depth: depth1, idx: i });
+    strand2.push({ x: cx + offset2, y, depth: depth2, idx: i });
+  }
+
+  // Sort all elements by depth for proper layering
+  const allElements = [];
+
+  // Cross-links every 4 rungs
+  for (let i = 0; i < nodeCount; i++) {
+    if (i % 4 === 0) {
+      const s1 = strand1[i], s2 = strand2[i];
+      const avgDepth = (s1.depth + s2.depth) / 2;
+      allElements.push({ type: 'link', s1, s2, depth: avgDepth, idx: i });
+    }
+  }
+
+  // Strand segments
+  for (let i = 0; i < nodeCount - 1; i++) {
+    allElements.push({ type: 'seg1', from: strand1[i], to: strand1[i + 1], depth: (strand1[i].depth + strand1[i + 1].depth) / 2 });
+    allElements.push({ type: 'seg2', from: strand2[i], to: strand2[i + 1], depth: (strand2[i].depth + strand2[i + 1].depth) / 2 });
+  }
+
+  // Nodes
+  for (let i = 0; i < nodeCount; i++) {
+    allElements.push({ type: 'node1', point: strand1[i], depth: strand1[i].depth });
+    allElements.push({ type: 'node2', point: strand2[i], depth: strand2[i].depth });
+  }
+
+  // Sort back-to-front
+  allElements.sort((a, b) => a.depth - b.depth);
+
+  ctx.globalCompositeOperation = 'lighter';
+
+  // Draw all elements — strand 1 = cyan, strand 2 = magenta, links = purple
+  allElements.forEach(el => {
+    const depthAlpha = 0.15 + el.depth * 0.85;
+    const depthScale = 0.5 + el.depth * 0.5;
+    const beatMod = 1 + dnaHelixIIBeatPulse * 0.3;
+
+    if (el.type === 'link') {
+      // Cross-link — purple
+      const linkAlpha = depthAlpha * (0.2 + bands.energy * 0.3 + bi * 0.15) * beatMod;
+      // Glow
+      ctx.beginPath();
+      ctx.moveTo(el.s1.x, el.s1.y);
+      ctx.lineTo(el.s2.x, el.s2.y);
+      ctx.strokeStyle = `rgba(183, 110, 255, ${linkAlpha * 0.3})`;
+      ctx.lineWidth = 4 * depthScale;
+      ctx.stroke();
+      // Crisp
+      ctx.beginPath();
+      ctx.moveTo(el.s1.x, el.s1.y);
+      ctx.lineTo(el.s2.x, el.s2.y);
+      ctx.strokeStyle = `rgba(220, 160, 255, ${linkAlpha})`;
+      ctx.lineWidth = 1 * depthScale;
+      ctx.stroke();
+    } else if (el.type === 'seg1' || el.type === 'seg2') {
+      // Strand 1 = cyan, Strand 2 = magenta
+      const segAlpha = depthAlpha * (0.25 + bands.energy * 0.4) * beatMod;
+      const isCyan = el.type === 'seg1';
+      // Glow
+      ctx.beginPath();
+      ctx.moveTo(el.from.x, el.from.y);
+      ctx.lineTo(el.to.x, el.to.y);
+      ctx.strokeStyle = isCyan
+        ? `rgba(0, 220, 245, ${segAlpha * 0.2})`
+        : `rgba(255, 45, 123, ${segAlpha * 0.2})`;
+      ctx.lineWidth = 5 * depthScale;
+      ctx.stroke();
+      // Crisp
+      ctx.beginPath();
+      ctx.moveTo(el.from.x, el.from.y);
+      ctx.lineTo(el.to.x, el.to.y);
+      ctx.strokeStyle = isCyan
+        ? `rgba(0, 240, 255, ${segAlpha})`
+        : `rgba(255, 80, 150, ${segAlpha})`;
+      ctx.lineWidth = 1.5 * depthScale;
+      ctx.stroke();
+    } else if (el.type === 'node1' || el.type === 'node2') {
+      // Nodes: strand 1 = cyan, strand 2 = magenta
+      const p = el.point;
+      const nodeSize = (3 + dnaHelixIIBeatPulse * 3) * depthScale * beatMod;
+      const nodeAlpha = depthAlpha * (0.5 + bi * 0.3);
+      const isCyan = el.type === 'node1';
+      const nc = isCyan ? [0, 220, 245] : [255, 45, 123];
+
+      // Glow halo
+      const glowR = nodeSize * 4;
+      const nodeGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
+      nodeGrad.addColorStop(0, `rgba(${nc[0]}, ${nc[1]}, ${nc[2]}, ${nodeAlpha * 0.25})`);
+      nodeGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = nodeGrad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Core — bright
+      const bright = [Math.min(255, nc[0] + 80), Math.min(255, nc[1] + 80), Math.min(255, nc[2] + 80)];
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, nodeSize, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${bright[0]}, ${bright[1]}, ${bright[2]}, ${nodeAlpha})`;
+      ctx.fill();
+    }
+  });
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Ambient vertical glow — cyan/magenta split
+  const ambGrad = ctx.createLinearGradient(cx - helixAmplitude * 2, 0, cx + helixAmplitude * 2, 0);
+  ambGrad.addColorStop(0, 'transparent');
+  ambGrad.addColorStop(0.2, `rgba(0, 220, 245, ${0.015 + bands.energy * 0.015})`);
+  ambGrad.addColorStop(0.5, `rgba(157, 78, 221, ${0.02 + bands.bass * 0.02})`);
+  ambGrad.addColorStop(0.8, `rgba(255, 45, 123, ${0.015 + bands.energy * 0.015})`);
+  ambGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = ambGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Beat flash — alternating cyan/magenta
+  if (bi > 0.6) {
+    const flashHue = Math.floor(time * 0.003) % 2;
+    ctx.fillStyle = flashHue === 0
+      ? `rgba(0, 220, 245, ${(bi - 0.6) * 0.08})`
+      : `rgba(255, 45, 123, ${(bi - 0.6) * 0.08})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  vizGlowIntensity = bands.energy * 0.3 + bi * 0.5;
+}
+
 function drawViz(time) {
   // Scenes that use trails handle their own clearing.
   // Only clear for scenes that need a full clear each frame.
-  const trailScenes = [0, 1, 3, 5, 6, 7, 8, 9, 11]; // FRACTAL FLAME, VOID PULSE, PARTICLE FIELD, PLASMA WARP, NEURAL WEB, AURORA BOREALIS, DNA HELIX, COSMIC MANDALA, BIO-GENESIS
+  const trailScenes = [0, 1, 3, 5, 6, 7, 8, 9, 11, 13, 14, 15]; // FRACTAL FLAME, VOID PULSE, PARTICLE FIELD, PLASMA WARP, NEURAL WEB, AURORA BOREALIS, DNA HELIX, COSMIC MANDALA, BIO-GENESIS, VOID PULSE II, NEURAL WEB II, DNA HELIX II
   const sheepVideo = document.getElementById('sheepVideo');
   if (currentScene === 10) {
     // Electric Sheep mode — video plays behind, canvas overlays on top
@@ -5946,6 +7302,9 @@ function drawViz(time) {
     case 10: drawElectricSheepOverlay(vizCtx, vizW, vizH, time); break;
     case 11: drawBioGenesis(vizCtx, vizW, vizH, time); break;
     case 12: drawCommandDeck(vizCtx, vizW, vizH, time); break;
+    case 13: drawVoidPulseII(vizCtx, vizW, vizH, time); break;
+    case 14: drawNeuralWebII(vizCtx, vizW, vizH, time); break;
+    case 15: drawDnaHelixII(vizCtx, vizW, vizH, time); break;
   }
   requestAnimationFrame(drawViz);
 }
@@ -5971,13 +7330,20 @@ function switchScene(index) {
   bioOrganisms = null; // Reset bio-genesis
   bioSmoothedBeat = 0;
   cmdDeckSmoothedBeat = 0; // Reset command deck
+  voidPulseIIRings = []; // Reset void pulse II
+  neuralWebIINodes = null; // Reset neural web II
+  neuralWebIISignals = []; // Reset neural web II signals
+  dnaHelixIIPhase = 0; // Reset DNA helix II
+  dnaHelixIIBeatPulse = 0;
   // Hide/show sheep video
   const sv = document.getElementById('sheepVideo');
   if (currentScene === 10) {
     sv.style.display = 'block';
     if (sheepVideos.length > 0 && sv.paused) {
-      sv.src = sheepVideos[sheepVideoIdx % sheepVideos.length];
-      sv.play().catch(() => {});
+      sheepVideoIdx = sheepVideoIdx % sheepVideos.length;
+      sv.src = sheepVideos[sheepVideoIdx];
+      console.log('Sheep: playing', sv.src);
+      sv.play().catch(e => console.warn('Sheep play error:', e.message));
     }
   } else {
     sv.style.display = 'none';
@@ -6088,16 +7454,49 @@ document.querySelector('.viz-expand').addEventListener('click', (e) => {
 
 // ============ ELECTRIC SHEEP AUTO-SCAN ============
 (function initElectricSheep() {
+  // Video error handler
+  const sv = document.getElementById('sheepVideo');
+  sv.addEventListener('error', (e) => {
+    console.error('Sheep video error:', sv.error?.message, 'code:', sv.error?.code, 'src:', sv.src);
+    // Try next video on error
+    if (sheepVideos.length > 1) {
+      sheepVideoIdx = (sheepVideoIdx + 1) % sheepVideos.length;
+      sv.src = sheepVideos[sheepVideoIdx];
+      sv.play().catch(() => {});
+    }
+  });
+  sv.addEventListener('loadeddata', () => {
+    console.log('Sheep video loaded OK:', sv.src);
+  });
+
   // Load saved folder from localStorage, fallback to C:\Sheep
   const savedFolder = localStorage.getItem('aether_sheep_folder');
   const scanPath = savedFolder || 'C:\\Sheep';
+  console.log('Electric Sheep: scanning', scanPath);
   if (window.electronAPI && window.electronAPI.scanSheepFolder) {
-    const files = window.electronAPI.scanSheepFolder(scanPath);
-    if (files.length > 0) {
-      sheepVideos = files.map(f => 'file:///' + f);
-      sheepFolder = scanPath;
-      console.log(`Electric Sheep: loaded ${files.length} videos from ${scanPath}`);
+    try {
+      const files = window.electronAPI.scanSheepFolder(scanPath);
+      console.log('Electric Sheep scan result:', files?.length, 'files');
+      if (files && files.length > 0) {
+        sheepVideos = files.map(f => 'file:///' + encodeURI(f).replace(/#/g, '%23'));
+        sheepFolder = scanPath;
+        console.log('Electric Sheep: loaded', sheepVideos.length, 'videos, first:', sheepVideos[0]);
+        updateSheepStatus();
+        showToast(`Electric Sheep: ${sheepVideos.length} video${sheepVideos.length === 1 ? '' : 's'} loaded from ${scanPath}`);
+        // Auto-start first video so it's ready when user switches to scene 10
+        const sv2 = document.getElementById('sheepVideo');
+        sv2.src = sheepVideos[0];
+        sv2.load();
+      } else {
+        console.warn('Electric Sheep: scan returned 0 files from', scanPath);
+        showToast('Electric Sheep: no videos found in ' + scanPath);
+      }
+    } catch(e) {
+      console.error('Electric Sheep scan error:', e);
+      showToast('Electric Sheep: scan error — ' + e.message);
     }
+  } else {
+    console.warn('Electric Sheep: electronAPI.scanSheepFolder not available');
   }
   updateSheepStatus();
 
@@ -6122,7 +7521,7 @@ document.querySelector('.viz-expand').addEventListener('click', (e) => {
     const videos = files.filter(f => /\.(mp4|webm|mkv|avi|mov|m4v)$/i.test(f.name));
     if (videos.length > 0) {
       videos.forEach(f => {
-        sheepVideos.push('file:///' + f.path.replace(/\\/g, '/'));
+        sheepVideos.push('file:///' + encodeURI(f.path.replace(/\\/g, '/')).replace(/#/g, '%23'));
       });
       showToast(`Electric Sheep: added ${videos.length} video${videos.length === 1 ? '' : 's'}`);
       updateSheepStatus();
