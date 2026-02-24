@@ -4384,38 +4384,103 @@ function drawElectricSheepOverlay(ctx, w, h, time) {
     sv.play().catch(e => console.warn('Sheep play error:', e.message, sv.src));
   }
 
-  // Semi-transparent canvas for overlay effects
+  // ═══ AUDIO-REACTIVE VIDEO MANIPULATION ═══
+  // Modulate playback speed with energy (0.7x → 1.6x)
+  const targetSpeed = 0.7 + bands.energy * 0.6 + beatIntensity * 0.3;
+  sv.playbackRate = sv.playbackRate + (targetSpeed - sv.playbackRate) * 0.1;
+
+  // Apply CSS filters to video element for audio-reactive color/brightness
+  const hueShift = Math.sin(time * 0.0003) * 30 + bands.mid * 60;
+  const brightness = 0.85 + bands.energy * 0.5 + beatIntensity * 0.4;
+  const contrast = 1.0 + bands.bass * 0.3 + beatIntensity * 0.2;
+  const saturate = 1.0 + bands.energy * 0.8 + beatIntensity * 0.5;
+  sv.style.filter = `hue-rotate(${hueShift}deg) brightness(${brightness}) contrast(${contrast}) saturate(${saturate})`;
+
+  // Audio-reactive zoom via CSS transform (subtle pulse on beat)
+  const zoom = 1.0 + beatIntensity * 0.04 + bands.bass * 0.02;
+  sv.style.transform = `scale(${zoom})`;
+
+  // ═══ CANVAS OVERLAY EFFECTS ═══
+  // Draw the video frame to canvas with blend for extra reactivity
+  if (sv.readyState >= 2) {
+    ctx.save();
+    ctx.globalAlpha = 0.08 + beatIntensity * 0.12;
+    ctx.globalCompositeOperation = 'screen';
+    ctx.drawImage(sv, 0, 0, w, h);
+    ctx.restore();
+  }
+
   ctx.globalCompositeOperation = 'lighter';
 
-  // Beat flash
-  if (beatIntensity > 0.3) {
-    const flashAlpha = beatIntensity * 0.15;
-    ctx.fillStyle = `rgba(255, 45, 123, ${flashAlpha})`;
+  // Beat flash — full screen color wash
+  if (beatIntensity > 0.25) {
+    const flashAlpha = beatIntensity * 0.2;
+    // Alternate flash colors based on beat frequency
+    const flashHue = (time * 0.001) % 3;
+    if (flashHue < 1) ctx.fillStyle = `rgba(255, 45, 123, ${flashAlpha})`;
+    else if (flashHue < 2) ctx.fillStyle = `rgba(0, 220, 245, ${flashAlpha * 0.7})`;
+    else ctx.fillStyle = `rgba(183, 110, 255, ${flashAlpha * 0.8})`;
     ctx.fillRect(0, 0, w, h);
   }
 
-  // Energy vignette glow
-  const vigR = Math.min(w, h) * 0.8;
-  const vigGrad = ctx.createRadialGradient(w/2, h/2, vigR * 0.3, w/2, h/2, vigR);
+  // Energy vignette glow — breathes with bass
+  const vigR = Math.min(w, h) * (0.7 + bands.bass * 0.2);
+  const vigGrad = ctx.createRadialGradient(w/2, h/2, vigR * 0.2, w/2, h/2, vigR);
   vigGrad.addColorStop(0, 'transparent');
-  vigGrad.addColorStop(1, `rgba(157, 78, 221, ${0.05 + bands.energy * 0.15})`);
+  vigGrad.addColorStop(0.7, `rgba(123, 47, 190, ${0.03 + bands.energy * 0.1})`);
+  vigGrad.addColorStop(1, `rgba(157, 78, 221, ${0.08 + bands.energy * 0.2})`);
   ctx.fillStyle = vigGrad;
   ctx.fillRect(0, 0, w, h);
 
-  // Pulse rings from center on beat
-  if (beatIntensity > 0.2) {
-    const ringR = 20 + (1 - beatIntensity) * Math.min(w, h) * 0.4;
-    ctx.beginPath();
-    ctx.arc(w/2, h/2, ringR, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(0, 220, 245, ${beatIntensity * 0.3})`;
-    ctx.lineWidth = 2 + beatIntensity * 4;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(w/2, h/2, ringR, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(255, 45, 123, ${beatIntensity * 0.15})`;
-    ctx.lineWidth = (2 + beatIntensity * 4) * 3;
-    ctx.stroke();
+  // Pulse rings from center on beat — expanding outward
+  if (beatIntensity > 0.15) {
+    for (let ring = 0; ring < 3; ring++) {
+      const decay = Math.max(0, beatIntensity - ring * 0.15);
+      if (decay <= 0) break;
+      const ringR = 20 + (1 - decay) * Math.min(w, h) * 0.5 + ring * 30;
+      ctx.beginPath();
+      ctx.arc(w/2, h/2, ringR, 0, Math.PI * 2);
+      ctx.strokeStyle = ring === 0
+        ? `rgba(0, 220, 245, ${decay * 0.4})`
+        : `rgba(183, 110, 255, ${decay * 0.2})`;
+      ctx.lineWidth = (3 - ring) + decay * 4;
+      ctx.stroke();
+    }
   }
+
+  // Floating energy particles on high energy
+  if (bands.energy > 0.3) {
+    const particleCount = Math.floor(bands.energy * 20 + beatIntensity * 15);
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (time * 0.0002 + i * 1.618) % (Math.PI * 2);
+      const dist = 50 + Math.sin(time * 0.001 + i * 0.5) * Math.min(w, h) * 0.3;
+      const px = w/2 + Math.cos(angle) * dist;
+      const py = h/2 + Math.sin(angle) * dist * 0.6;
+      const size = 1 + bands.energy * 3 + beatIntensity * 2;
+      const alpha = 0.2 + beatIntensity * 0.4;
+      ctx.beginPath();
+      ctx.arc(px, py, size, 0, Math.PI * 2);
+      ctx.fillStyle = i % 3 === 0
+        ? `rgba(0, 220, 245, ${alpha})`
+        : i % 3 === 1
+        ? `rgba(255, 45, 123, ${alpha * 0.7})`
+        : `rgba(183, 110, 255, ${alpha * 0.8})`;
+      ctx.fill();
+    }
+  }
+
+  // Bass waveform scanner line
+  const scanY = h * 0.5 + Math.sin(time * 0.001) * h * 0.3;
+  ctx.beginPath();
+  ctx.moveTo(0, scanY);
+  for (let x = 0; x < w; x += 4) {
+    const idx = Math.floor((x / w) * (freqData?.length || 128));
+    const amp = (freqData ? freqData[idx] / 255 : 0) * 30 * bands.energy;
+    ctx.lineTo(x, scanY + Math.sin(x * 0.02 + time * 0.003) * amp);
+  }
+  ctx.strokeStyle = `rgba(0, 220, 245, ${0.1 + bands.energy * 0.15})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
 
   ctx.globalCompositeOperation = 'source-over';
 
@@ -5855,8 +5920,8 @@ function drawNeuralWeb(ctx, w, h, time) {
 
 // ============ AURORA BOREALIS ============
 function drawAuroraBorealis(ctx, w, h, time) {
-  // Slightly faster fade for less bright accumulation
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+  // Trail fade — slow enough for ghosting trails
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
   ctx.fillRect(0, 0, w, h);
 
   const bi = beatIntensity;
@@ -5865,50 +5930,58 @@ function drawAuroraBorealis(ctx, w, h, time) {
   // Initialize stars
   if (!auroraStars) {
     auroraStars = [];
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 200; i++) {
       auroraStars.push({
         x: Math.random() * w,
-        y: Math.random() * h * 0.7,
-        size: Math.random() * 1.2 + 0.2, // Slightly smaller stars
-        twinkleSpeed: Math.random() * 2 + 1,
+        y: Math.random() * h * 0.75,
+        size: Math.random() * 1.5 + 0.3,
+        twinkleSpeed: Math.random() * 2 + 0.5,
         twinklePhase: Math.random() * Math.PI * 2
       });
     }
   }
 
-  // Draw star field behind curtains - dimmer, less white
+  // Draw star field behind curtains
   ctx.globalCompositeOperation = 'lighter';
   auroraStars.forEach(star => {
     const twinkle = 0.3 + 0.7 * Math.abs(Math.sin(t * star.twinkleSpeed + star.twinklePhase));
-    const alpha = twinkle * (0.2 + bi * 0.15); // Halved brightness
-    // Tinted stars instead of white
-    ctx.fillStyle = `rgba(140, 160, 200, ${alpha})`;
+    const alpha = twinkle * (0.25 + bi * 0.15);
+    ctx.fillStyle = `rgba(140, 170, 220, ${alpha})`;
     ctx.beginPath();
     ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
     ctx.fill();
+    // Bright star glow on some
+    if (star.size > 1.2 && twinkle > 0.8) {
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.size * 3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(180, 200, 240, ${alpha * 0.15})`;
+      ctx.fill();
+    }
   });
 
-  // Aurora curtain layers -- reduced alpha values across the board
+  // Aurora curtain layers — vivid, full intensity
   const curtainLayers = [
-    { yBase: 0.15, amplitude: 0.08, speed: 0.3, waveCount: 3, heightMul: 0.35, colors: ['#00B4D8', '#9D4EDD'], alpha: 0.06 },
-    { yBase: 0.2, amplitude: 0.06, speed: 0.5, waveCount: 4, heightMul: 0.30, colors: ['#9D4EDD', '#FF2D7B'], alpha: 0.07 },
-    { yBase: 0.12, amplitude: 0.1, speed: 0.2, waveCount: 2.5, heightMul: 0.40, colors: ['#00DCF5', '#B76EFF'], alpha: 0.09 },
-    { yBase: 0.18, amplitude: 0.07, speed: 0.7, waveCount: 5, heightMul: 0.25, colors: ['#B76EFF', '#FF6BA8'], alpha: 0.07 }
+    { yBase: 0.12, amplitude: 0.10, speed: 0.25, waveCount: 2.5, heightMul: 0.45, colors: ['#00DCF5', '#9D4EDD'], alpha: 0.18 },
+    { yBase: 0.18, amplitude: 0.07, speed: 0.45, waveCount: 3.5, heightMul: 0.35, colors: ['#9D4EDD', '#FF2D7B'], alpha: 0.15 },
+    { yBase: 0.08, amplitude: 0.12, speed: 0.15, waveCount: 2,   heightMul: 0.50, colors: ['#00B4D8', '#B76EFF'], alpha: 0.20 },
+    { yBase: 0.22, amplitude: 0.06, speed: 0.6,  waveCount: 5,   heightMul: 0.28, colors: ['#B76EFF', '#FF6BA8'], alpha: 0.14 },
+    { yBase: 0.05, amplitude: 0.14, speed: 0.10, waveCount: 1.5, heightMul: 0.55, colors: ['#48F2FF', '#D4A0FF'], alpha: 0.10 }
   ];
 
-  const bassExpand = 1 + bands.bass * 0.5; // Reduced bass expansion
-  const beatFlash = bi > 0.5 ? bi * 0.12 : 0; // Much reduced beat flash (was 0.4)
+  const bassExpand = 1 + bands.bass * 0.8;
+  const beatFlash = bi > 0.4 ? bi * 0.25 : 0;
 
   curtainLayers.forEach((layer, li) => {
-    const swaySpeed = layer.speed * (1 + bands.mid * 1.5);
+    const swaySpeed = layer.speed * (1 + bands.mid * 2);
     const points = [];
-    const segments = 60;
+    const segments = 80;
 
     for (let i = 0; i <= segments; i++) {
       const xRatio = i / segments;
       const x = xRatio * w;
       const sway = Math.sin(xRatio * layer.waveCount * Math.PI + t * swaySpeed) * layer.amplitude
-                  + Math.sin(xRatio * layer.waveCount * 1.7 * Math.PI + t * swaySpeed * 0.6) * layer.amplitude * 0.5;
+                  + Math.sin(xRatio * layer.waveCount * 1.7 * Math.PI + t * swaySpeed * 0.6) * layer.amplitude * 0.5
+                  + Math.sin(xRatio * 7 + t * 0.8) * 0.015 * bands.high; // high-freq shimmer
       const y = (layer.yBase + sway) * h;
       points.push({ x, y });
     }
@@ -5928,16 +6001,18 @@ function drawAuroraBorealis(ctx, w, h, time) {
     ctx.lineTo(points[0].x, points[0].y + curtainHeight);
     ctx.closePath();
 
-    // Gradient fill - using reduced alpha values
+    // Gradient fill — vivid
     const avgY = points.reduce((s, p) => s + p.y, 0) / points.length;
     const grad = ctx.createLinearGradient(0, avgY, 0, avgY + curtainHeight);
-    grad.addColorStop(0, layer.colors[0] + Math.round((layer.alpha + beatFlash) * 255).toString(16).padStart(2, '0'));
-    grad.addColorStop(0.4, layer.colors[1] + Math.round((layer.alpha * 0.4 + beatFlash * 0.3) * 255).toString(16).padStart(2, '0'));
+    const topAlpha = Math.min(0.99, (layer.alpha + beatFlash) * (1 + bands.energy * 0.5));
+    const midAlpha = Math.min(0.99, (layer.alpha * 0.5 + beatFlash * 0.4));
+    grad.addColorStop(0, layer.colors[0] + Math.round(topAlpha * 255).toString(16).padStart(2, '0'));
+    grad.addColorStop(0.3, layer.colors[1] + Math.round(midAlpha * 255).toString(16).padStart(2, '0'));
     grad.addColorStop(1, 'transparent');
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Edge along the top - muted color instead of white, much dimmer
+    // Edge along the top — tinted to match curtain color, not white
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length - 1; i++) {
@@ -5945,34 +6020,69 @@ function drawAuroraBorealis(ctx, w, h, time) {
       const cpy = (points[i].y + points[i + 1].y) / 2;
       ctx.quadraticCurveTo(points[i].x, points[i].y, cpx, cpy);
     }
-    // Use a muted tint instead of pure white
-    ctx.strokeStyle = `rgba(140, 160, 180, ${0.04 + beatFlash * 0.15 + bands.energy * 0.05})`;
-    ctx.lineWidth = 0.8 + bi * 1;
+    ctx.strokeStyle = layer.colors[0] + Math.round(Math.min(0.99, 0.15 + beatFlash * 0.2 + bands.energy * 0.1) * 255).toString(16).padStart(2, '0');
+    ctx.lineWidth = 1 + bi * 1.5;
     ctx.stroke();
 
-    // Vertical rays of light - much dimmer, tinted instead of white
-    for (let i = 0; i < points.length; i += 4) { // Less frequent (every 4 instead of 3)
+    // Vertical rays of light — tinted, streaming down from the curtain
+    for (let i = 0; i < points.length; i += 3) {
       const localBright = Math.abs(Math.sin(points[i].x * 0.01 + t * swaySpeed * 2));
-      if (localBright > 0.8) { // Higher threshold (was 0.7)
-        const rayAlpha = (localBright - 0.8) / 0.2 * (0.03 + bi * 0.05); // Much dimmer (was 0.08 + bi*0.15)
-        const rayLen = curtainHeight * 1.2 * (0.4 + bands.sub * 0.4);
+      if (localBright > 0.65) {
+        const rayAlpha = (localBright - 0.65) / 0.35 * (0.06 + bi * 0.08 + bands.sub * 0.04);
+        const rayLen = curtainHeight * 1.5 * (0.5 + bands.sub * 0.5);
         const rayGrad = ctx.createLinearGradient(points[i].x, points[i].y, points[i].x, points[i].y + rayLen);
-        // Tinted rays instead of near-white
-        rayGrad.addColorStop(0, `rgba(100, 140, 180, ${rayAlpha})`);
+        rayGrad.addColorStop(0, layer.colors[0] + Math.round(Math.min(0.99, rayAlpha) * 255).toString(16).padStart(2, '0'));
+        rayGrad.addColorStop(0.4, layer.colors[1] + Math.round(Math.min(0.99, rayAlpha * 0.4) * 255).toString(16).padStart(2, '0'));
         rayGrad.addColorStop(1, 'transparent');
         ctx.fillStyle = rayGrad;
-        ctx.fillRect(points[i].x - 1, points[i].y, 2, rayLen);
+        ctx.fillRect(points[i].x - 1.5, points[i].y, 3, rayLen);
       }
     }
   });
 
+  // Shimmer particles — floating specks of light within the aurora
+  const shimmerCount = 30 + Math.floor(bands.energy * 40);
+  for (let i = 0; i < shimmerCount; i++) {
+    const phase = t * 0.3 + i * 2.399;
+    const px = (Math.sin(phase * 0.7 + i) * 0.5 + 0.5) * w;
+    const py = (0.05 + Math.sin(phase * 0.4 + i * 0.3) * 0.3) * h;
+    const size = 0.5 + Math.sin(phase * 3) * 0.5 + bi * 1.5;
+    const alpha = (0.3 + Math.sin(phase * 5) * 0.3) * (0.4 + bands.energy * 0.4);
+    if (alpha < 0.05) continue;
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    const hue = (i / shimmerCount + t * 0.05) % 1;
+    if (hue < 0.33) ctx.fillStyle = `rgba(0, 220, 245, ${alpha})`;
+    else if (hue < 0.66) ctx.fillStyle = `rgba(183, 110, 255, ${alpha})`;
+    else ctx.fillStyle = `rgba(255, 45, 123, ${alpha * 0.7})`;
+    ctx.fill();
+  }
+
+  // Ground reflection — mirrored glow along the bottom
+  const reflectY = h * 0.85;
+  const reflectGrad = ctx.createLinearGradient(0, reflectY, 0, h);
+  reflectGrad.addColorStop(0, 'transparent');
+  reflectGrad.addColorStop(0.3, `rgba(0, 180, 216, ${0.03 + bands.energy * 0.04})`);
+  reflectGrad.addColorStop(0.6, `rgba(157, 78, 221, ${0.04 + bands.energy * 0.05})`);
+  reflectGrad.addColorStop(1, `rgba(0, 220, 245, ${0.02 + bi * 0.03})`);
+  ctx.fillStyle = reflectGrad;
+  ctx.fillRect(0, reflectY, w, h - reflectY);
+
+  // Horizon line
+  ctx.beginPath();
+  ctx.moveTo(0, reflectY);
+  ctx.lineTo(w, reflectY);
+  ctx.strokeStyle = `rgba(0, 220, 245, ${0.06 + bands.energy * 0.08})`;
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
   ctx.globalCompositeOperation = 'source-over';
 
-  vizGlowIntensity = bands.energy * 0.25 + bi * 0.35;
+  vizGlowIntensity = bands.energy * 0.35 + bi * 0.45;
   const panel = document.getElementById('vizPanel');
   if (panel) {
-    const glow = Math.round(vizGlowIntensity * 20);
-    panel.style.boxShadow = `0 0 ${glow}px rgba(0,220,245,${vizGlowIntensity * 0.25}), 0 0 ${glow*2}px rgba(157,78,221,${vizGlowIntensity * 0.1})`;
+    const glow = Math.round(vizGlowIntensity * 25);
+    panel.style.boxShadow = `0 0 ${glow}px rgba(0,220,245,${vizGlowIntensity * 0.3}), 0 0 ${glow*2}px rgba(157,78,221,${vizGlowIntensity * 0.15})`;
   }
 }
 
@@ -6671,397 +6781,242 @@ function drawCommandDeck(ctx, w, h, time) {
   cmdDeckSmoothedBeat += (bi - cmdDeckSmoothedBeat) * 0.12;
   const sb = cmdDeckSmoothedBeat;
   const minDim = Math.min(w, h);
+  const t = time * 0.001;
 
-  // === ATMOSPHERIC AURA — deep ambient glow behind everything ===
-  // Center aura that breathes with bass
-  const auraR = minDim * 0.55 + sb * 40;
-  const auraGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, auraR);
-  auraGrad.addColorStop(0, `rgba(0, 220, 245, ${0.04 + sb * 0.06})`);
-  auraGrad.addColorStop(0.3, `rgba(157, 78, 221, ${0.025 + sb * 0.03})`);
-  auraGrad.addColorStop(0.6, `rgba(0, 120, 180, ${0.01 + sb * 0.015})`);
-  auraGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = auraGrad;
-  ctx.fillRect(0, 0, w, h);
-
-  // Drifting ambient orbs — slow-moving colored fog
-  for (let i = 0; i < 4; i++) {
-    const ox = cx + Math.sin(time * 0.0003 + i * 1.8) * w * 0.3;
-    const oy = cy + Math.cos(time * 0.0004 + i * 2.1) * h * 0.25;
-    const oR = minDim * (0.15 + Math.sin(time * 0.0005 + i) * 0.05) + sb * 20;
-    const orbGrad = ctx.createRadialGradient(ox, oy, 0, ox, oy, oR);
-    const colors = [[0,220,245],[157,78,221],[183,110,255],[0,180,216]];
-    const c = colors[i];
-    orbGrad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]}, ${0.02 + sb * 0.02})`);
-    orbGrad.addColorStop(1, 'transparent');
-    ctx.fillStyle = orbGrad;
-    ctx.fillRect(ox - oR, oy - oR, oR * 2, oR * 2);
-  }
-
-  // === BACKGROUND: ultra-subtle scanlines ===
-  for (let y = 0; y < h; y += 4) {
-    ctx.fillStyle = `rgba(0, 180, 216, ${0.006 + Math.sin(y * 0.08 + time * 0.001) * 0.003})`;
-    ctx.fillRect(0, y, w, 1);
-  }
-
-  // === SHIMMER PARTICLES — floating motes of light ===
-  if (!drawCommandDeck._shimmers) {
-    drawCommandDeck._shimmers = [];
-    for (let i = 0; i < 60; i++) {
-      drawCommandDeck._shimmers.push({
-        x: Math.random() * 1, y: Math.random() * 1,
-        vx: (Math.random() - 0.5) * 0.0003,
-        vy: (Math.random() - 0.5) * 0.0002 - 0.0001,
-        size: 0.5 + Math.random() * 1.5,
-        phase: Math.random() * Math.PI * 2,
-        speed: 0.002 + Math.random() * 0.004,
-        color: Math.floor(Math.random() * 3) // 0=cyan, 1=purple, 2=pink
-      });
-    }
-  }
-  drawCommandDeck._shimmers.forEach(p => {
-    p.x += p.vx + Math.sin(time * 0.0002 + p.phase) * 0.0001;
-    p.y += p.vy;
-    if (p.y < -0.05) { p.y = 1.05; p.x = Math.random(); }
-    if (p.x < -0.05) p.x = 1.05;
-    if (p.x > 1.05) p.x = -0.05;
-    const shimmer = (Math.sin(time * p.speed + p.phase) * 0.5 + 0.5);
-    const alpha = shimmer * (0.15 + sb * 0.25);
-    const px = p.x * w, py = p.y * h;
-    const sz = p.size * (1 + sb * 0.5) * (0.5 + shimmer * 0.5);
-    const cols = [[0,220,245],[183,110,255],[255,45,123]];
-    const c = cols[p.color];
-    // Core dot
-    ctx.beginPath(); ctx.arc(px, py, sz, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]}, ${alpha})`;
-    ctx.fill();
-    // Glow halo
-    if (shimmer > 0.6) {
-      const haloGrad = ctx.createRadialGradient(px, py, 0, px, py, sz * 6);
-      haloGrad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]}, ${alpha * 0.15})`);
-      haloGrad.addColorStop(1, 'transparent');
-      ctx.fillStyle = haloGrad;
-      ctx.beginPath(); ctx.arc(px, py, sz * 6, 0, Math.PI * 2); ctx.fill();
-    }
-  });
-
-  // === MAIN RADAR HUD (center) ===
-  const radarR = minDim * 0.3;
-
-  // Radar outer aura glow — pulsing ring of light
-  const radarAura = ctx.createRadialGradient(cx, cy, radarR * 0.9, cx, cy, radarR * 1.4);
-  radarAura.addColorStop(0, `rgba(0, 220, 245, ${0.03 + sb * 0.05})`);
-  radarAura.addColorStop(0.5, `rgba(0, 180, 216, ${0.01 + sb * 0.02})`);
-  radarAura.addColorStop(1, 'transparent');
-  ctx.fillStyle = radarAura;
-  ctx.beginPath(); ctx.arc(cx, cy, radarR * 1.4, 0, Math.PI * 2); ctx.fill();
-
-  // Radar background — subtle gradient
-  const radarBg = ctx.createRadialGradient(cx, cy, 0, cx, cy, radarR);
-  radarBg.addColorStop(0, 'rgba(0, 30, 40, 0.15)');
-  radarBg.addColorStop(1, 'rgba(0, 10, 18, 0.25)');
-  ctx.fillStyle = radarBg;
-  ctx.beginPath(); ctx.arc(cx, cy, radarR, 0, Math.PI * 2); ctx.fill();
-
-  // Concentric rings — thin, elegant, with subtle glow
-  for (let r = 1; r <= 5; r++) {
-    const ringR = (r / 5) * radarR;
-    // Glow layer
-    ctx.beginPath(); ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(0, 220, 245, ${0.02 + sb * 0.015})`;
-    ctx.lineWidth = 3; ctx.stroke();
-    // Crisp line
-    ctx.beginPath(); ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(0, 220, 245, ${0.08 + sb * 0.04})`;
-    ctx.lineWidth = 0.4; ctx.stroke();
-  }
-  // Crosshairs — dashed, refined
-  ctx.setLineDash([4, 8]);
-  ctx.strokeStyle = `rgba(0, 220, 245, 0.08)`;
-  ctx.lineWidth = 0.5;
-  ctx.beginPath(); ctx.moveTo(cx - radarR, cy); ctx.lineTo(cx + radarR, cy); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx, cy - radarR); ctx.lineTo(cx, cy + radarR); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Radar sweep — smooth gradient cone with glow
-  const sweepAngle = time * 0.0015;
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx, cy, radarR, 0, Math.PI * 2); ctx.clip();
-  for (let t = 0; t < 50; t++) {
-    const trailAngle = sweepAngle - t * 0.015;
-    const trailAlpha = (1 - t / 50) * (0.06 + sb * 0.04);
-    ctx.beginPath(); ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, radarR, trailAngle - 0.015, trailAngle + 0.015);
-    ctx.closePath();
-    ctx.fillStyle = `rgba(0, 220, 245, ${trailAlpha})`;
-    ctx.fill();
-  }
-  // Sweep line with glow
-  const sx = cx + Math.cos(sweepAngle) * radarR;
-  const sy = cy + Math.sin(sweepAngle) * radarR;
-  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(sx, sy);
-  ctx.strokeStyle = `rgba(0, 220, 245, ${0.12 + sb * 0.08})`;
-  ctx.lineWidth = 6; ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(sx, sy);
-  ctx.strokeStyle = `rgba(0, 220, 245, ${0.5 + sb * 0.4})`;
-  ctx.lineWidth = 1; ctx.stroke();
-  // Sweep tip glow
-  const tipGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, 12 + sb * 8);
-  tipGrad.addColorStop(0, `rgba(0, 255, 255, ${0.3 + sb * 0.3})`);
-  tipGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = tipGrad;
-  ctx.beginPath(); ctx.arc(sx, sy, 12 + sb * 8, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-
-  // Radar frequency dots — with glow halos
-  if (freqData) {
-    for (let i = 0; i < 40; i++) {
-      const val = freqData[i * 3] / 255;
-      if (val < 0.12) continue;
-      const dotAngle = (i / 40) * Math.PI * 2 + time * 0.0002;
-      const dotDist = val * radarR * 0.88;
-      const dx = cx + Math.cos(dotAngle) * dotDist;
-      const dy = cy + Math.sin(dotAngle) * dotDist;
-      const dotSize = 1 + val * 2;
-      // Glow halo
-      const dotGlow = ctx.createRadialGradient(dx, dy, 0, dx, dy, dotSize * 5);
-      dotGlow.addColorStop(0, `rgba(0, 220, 245, ${val * 0.12})`);
-      dotGlow.addColorStop(1, 'transparent');
-      ctx.fillStyle = dotGlow;
-      ctx.beginPath(); ctx.arc(dx, dy, dotSize * 5, 0, Math.PI * 2); ctx.fill();
-      // Core
-      ctx.beginPath(); ctx.arc(dx, dy, dotSize, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 220, 245, ${0.5 + val * 0.5})`;
-      ctx.fill();
-    }
-  }
-
-  // Outer ring with glow
-  ctx.beginPath(); ctx.arc(cx, cy, radarR, 0, Math.PI * 2);
-  ctx.strokeStyle = `rgba(0, 220, 245, ${0.08 + sb * 0.06})`;
-  ctx.lineWidth = 4; ctx.stroke();
-  ctx.beginPath(); ctx.arc(cx, cy, radarR, 0, Math.PI * 2);
-  ctx.strokeStyle = `rgba(0, 220, 245, ${0.35 + sb * 0.25})`;
-  ctx.lineWidth = 0.8; ctx.stroke();
-  // Tick marks — 60 ticks, hair-thin
-  for (let i = 0; i < 60; i++) {
-    const a = (i / 60) * Math.PI * 2;
-    const major = i % 5 === 0;
-    const innerR = radarR - (major ? 7 : 3);
-    ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * innerR, cy + Math.sin(a) * innerR);
-    ctx.lineTo(cx + Math.cos(a) * radarR, cy + Math.sin(a) * radarR);
-    ctx.strokeStyle = `rgba(0, 220, 245, ${major ? 0.4 : 0.1})`;
-    ctx.lineWidth = major ? 0.8 : 0.3; ctx.stroke();
-  }
-
-  // === GLOWING TEXT helper ===
-  function glowText(text, x, y, r, g, b, alpha, fontSize, glowSize) {
-    ctx.font = fontSize + 'px "JetBrains Mono"';
-    // Glow layer
-    ctx.fillStyle = `rgba(${r},${g},${b}, ${alpha * 0.25})`;
-    ctx.filter = `blur(${glowSize}px)`;
-    ctx.fillText(text, x, y);
-    ctx.filter = 'none';
-    // Crisp text
+  // === GLOW TEXT HELPER ===
+  function gt(text, x, y, r, g, b, alpha, fs) {
+    ctx.font = fs + 'px "JetBrains Mono"';
+    ctx.fillStyle = `rgba(${r},${g},${b}, ${alpha * 0.3})`;
+    ctx.filter = 'blur(3px)'; ctx.fillText(text, x, y); ctx.filter = 'none';
     ctx.fillStyle = `rgba(${r},${g},${b}, ${alpha})`;
     ctx.fillText(text, x, y);
   }
 
-  // Degree labels with glow
-  ctx.textAlign = 'center';
-  glowText('000', cx, cy - radarR - 4, 0, 220, 245, 0.4 + sb * 0.2, 7, 3);
-  glowText('090', cx + radarR + 12, cy + 3, 0, 220, 245, 0.4 + sb * 0.2, 7, 3);
-  glowText('180', cx, cy + radarR + 10, 0, 220, 245, 0.4 + sb * 0.2, 7, 3);
-  glowText('270', cx - radarR - 12, cy + 3, 0, 220, 245, 0.4 + sb * 0.2, 7, 3);
-  ctx.textAlign = 'left';
+  // === DEEP SPACE AMBIENT ===
+  const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, minDim * 0.7);
+  coreGlow.addColorStop(0, `rgba(60, 20, 120, ${0.04 + sb * 0.03})`);
+  coreGlow.addColorStop(0.5, `rgba(20, 5, 50, ${0.02 + sb * 0.02})`);
+  coreGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = coreGlow; ctx.fillRect(0, 0, w, h);
 
-  // === LEFT: Vertical frequency bars with aura ===
-  const panelX = w * 0.04;
-  const panelY = h * 0.12;
-  const panelW = w * 0.14;
-  const panelH = h * 0.76;
-  // Panel aura glow
-  const pAuraGrad = ctx.createLinearGradient(panelX - 10, 0, panelX + panelW + 10, 0);
-  pAuraGrad.addColorStop(0, 'transparent');
-  pAuraGrad.addColorStop(0.3, `rgba(157, 78, 221, ${0.015 + sb * 0.01})`);
-  pAuraGrad.addColorStop(0.7, `rgba(157, 78, 221, ${0.015 + sb * 0.01})`);
-  pAuraGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = pAuraGrad;
-  ctx.fillRect(panelX - 10, panelY - 10, panelW + 20, panelH + 20);
-  // Frame with glow
-  ctx.strokeStyle = `rgba(157, 78, 221, ${0.06 + sb * 0.04})`;
-  ctx.lineWidth = 3; ctx.strokeRect(panelX, panelY, panelW, panelH);
-  ctx.strokeStyle = `rgba(157, 78, 221, ${0.15 + sb * 0.08})`;
-  ctx.lineWidth = 0.5; ctx.strokeRect(panelX, panelY, panelW, panelH);
-  glowText('FREQ SPECTRUM', panelX + 3, panelY - 3, 157, 78, 221, 0.5 + sb * 0.3, 7, 4);
+  // === CENTRAL HOLOGRAPHIC DISC — the UFO's main display ===
+  const discR = minDim * 0.32;
+  const discY = cy - h * 0.02; // slightly above center
 
+  // Outer ring — thick beveled edge
+  ctx.beginPath(); ctx.arc(cx, discY, discR + 3, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(183, 110, 255, ${0.06 + sb * 0.04})`; ctx.lineWidth = 8; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, discY, discR, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(183, 110, 255, ${0.25 + sb * 0.15})`; ctx.lineWidth = 1; ctx.stroke();
+
+  // Inner disc fill — dark with radial gradient
+  const discBg = ctx.createRadialGradient(cx, discY, 0, cx, discY, discR);
+  discBg.addColorStop(0, `rgba(15, 5, 30, 0.4)`);
+  discBg.addColorStop(0.8, `rgba(8, 2, 20, 0.6)`);
+  discBg.addColorStop(1, 'rgba(0,0,0,0.3)');
+  ctx.fillStyle = discBg;
+  ctx.beginPath(); ctx.arc(cx, discY, discR, 0, Math.PI * 2); ctx.fill();
+
+  // Concentric frequency rings — pulse with audio bands
+  const ringBands = [bands.sub, bands.bass, bands.mid, bands.high, bands.energy];
+  const ringColors = [[157,78,221],[183,110,255],[0,220,245],[0,180,216],[255,45,123]];
+  for (let i = 0; i < 5; i++) {
+    const rr = (0.2 + i * 0.15) * discR + ringBands[i] * 10;
+    const c = ringColors[i];
+    const a = 0.08 + ringBands[i] * 0.2 + sb * 0.05;
+    ctx.beginPath(); ctx.arc(cx, discY, rr, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]}, ${a})`; ctx.lineWidth = 0.5 + ringBands[i] * 1.5; ctx.stroke();
+  }
+
+  // Rotating frequency arcs — alien symbol segments
   if (freqData) {
-    const barCount = 32;
-    const barH = (panelH - 10) / barCount;
-    for (let i = 0; i < barCount; i++) {
-      const freqIdx = Math.floor((i / barCount) * 128);
-      const val = freqData[freqIdx] / 255;
-      const barW = val * (panelW - 10);
-      const by = panelY + 5 + i * barH;
-      // Bar glow
-      if (val > 0.2) {
-        ctx.fillStyle = `rgba(0, 220, 245, ${val * 0.04})`;
-        ctx.fillRect(panelX + 3, by, barW + 8, barH);
-      }
-      // Gradient bar
-      const barGrad = ctx.createLinearGradient(panelX + 5, 0, panelX + 5 + panelW - 10, 0);
-      barGrad.addColorStop(0, `rgba(157, 78, 221, ${0.3 + val * 0.5})`);
-      barGrad.addColorStop(1, `rgba(0, 220, 245, ${val * 0.7})`);
-      ctx.fillStyle = barGrad;
-      ctx.fillRect(panelX + 5, by + 1, barW, barH - 2);
-      // Peak dot with bloom
-      if (val > 0.1) {
-        ctx.fillStyle = `rgba(220, 230, 255, ${0.5 + val * 0.5})`;
-        ctx.fillRect(panelX + 5 + barW, by + 1, 1.5, barH - 2);
-        ctx.fillStyle = `rgba(220, 230, 255, ${val * 0.1})`;
-        ctx.fillRect(panelX + 3 + barW, by, 5, barH);
-      }
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, discY, discR - 2, 0, Math.PI * 2); ctx.clip();
+    for (let i = 0; i < 64; i++) {
+      const val = freqData[i * 2] / 255;
+      if (val < 0.08) continue;
+      const arcAngle = (i / 64) * Math.PI * 2 + t * 0.2;
+      const arcR = discR * (0.3 + val * 0.6);
+      const arcLen = 0.04 + val * 0.05;
+      ctx.beginPath(); ctx.arc(cx, discY, arcR, arcAngle - arcLen, arcAngle + arcLen);
+      const hue = i / 64;
+      if (hue < 0.33) ctx.strokeStyle = `rgba(183, 110, 255, ${val * 0.5})`;
+      else if (hue < 0.66) ctx.strokeStyle = `rgba(0, 220, 245, ${val * 0.5})`;
+      else ctx.strokeStyle = `rgba(255, 45, 123, ${val * 0.4})`;
+      ctx.lineWidth = 1 + val * 3; ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Central core — pulsing energy orb
+  const coreR = 8 + bands.energy * 15 + sb * 12;
+  const coreG = ctx.createRadialGradient(cx, discY, 0, cx, discY, coreR);
+  coreG.addColorStop(0, `rgba(220, 200, 255, ${0.4 + sb * 0.3})`);
+  coreG.addColorStop(0.3, `rgba(183, 110, 255, ${0.25 + sb * 0.2})`);
+  coreG.addColorStop(0.7, `rgba(123, 47, 190, ${0.1 + sb * 0.1})`);
+  coreG.addColorStop(1, 'transparent');
+  ctx.fillStyle = coreG;
+  ctx.beginPath(); ctx.arc(cx, discY, coreR, 0, Math.PI * 2); ctx.fill();
+
+  // Rotating symbol ring around outer edge
+  ctx.save(); ctx.translate(cx, discY); ctx.rotate(t * 0.15);
+  const symbols = '⟁⟐⟡⬡⬢◈◇⟠⟢⏣⎔⟁⟐⟡⬡⬢◈◇⟠⟢⏣⎔';
+  ctx.font = '7px "JetBrains Mono"'; ctx.textAlign = 'center';
+  for (let i = 0; i < symbols.length; i++) {
+    const sa = (i / symbols.length) * Math.PI * 2;
+    const sr = discR + 12;
+    const sx2 = Math.cos(sa) * sr, sy2 = Math.sin(sa) * sr;
+    const symAlpha = 0.15 + Math.sin(t * 2 + i * 0.5) * 0.1 + sb * 0.1;
+    ctx.fillStyle = `rgba(183, 110, 255, ${symAlpha})`;
+    ctx.fillText(symbols[i], sx2, sy2 + 3);
+  }
+  ctx.restore();
+
+  // === LEFT PANEL: Frequency Waterfall ===
+  const lpX = w * 0.03, lpY = h * 0.08, lpW = w * 0.18, lpH = h * 0.84;
+  // Panel frame — rounded corners via path
+  ctx.strokeStyle = `rgba(183, 110, 255, ${0.12 + sb * 0.06})`; ctx.lineWidth = 0.5;
+  ctx.strokeRect(lpX, lpY, lpW, lpH);
+  ctx.textAlign = 'left';
+  gt('HARMONIC FIELD', lpX + 4, lpY - 4, 183, 110, 255, 0.5 + sb * 0.2, 6);
+
+  // Circular frequency meters — stacked vertically like UFO gauges
+  if (freqData) {
+    const gaugeCount = 8;
+    const gaugeSpacing = lpH / gaugeCount;
+    const gaugeR = Math.min(lpW * 0.35, gaugeSpacing * 0.38);
+    const freqLabels = ['20', '60', '150', '400', '1K', '3K', '8K', '16K'];
+    for (let i = 0; i < gaugeCount; i++) {
+      const gx = lpX + lpW / 2;
+      const gy = lpY + gaugeSpacing * (i + 0.5);
+      const fIdx = Math.floor((i / gaugeCount) * 128);
+      const val = freqData[fIdx] / 255;
+      const c = i < 3 ? [157,78,221] : i < 6 ? [0,220,245] : [255,45,123];
+
+      // Gauge ring background
+      ctx.beginPath(); ctx.arc(gx, gy, gaugeR, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]}, 0.08)`; ctx.lineWidth = 2; ctx.stroke();
+
+      // Gauge arc — fill proportional to value
+      const startA = -Math.PI * 0.75, endA = startA + val * Math.PI * 1.5;
+      ctx.beginPath(); ctx.arc(gx, gy, gaugeR, startA, endA);
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]}, ${0.3 + val * 0.5})`; ctx.lineWidth = 2.5; ctx.stroke();
+      // Glow on arc
+      ctx.beginPath(); ctx.arc(gx, gy, gaugeR, startA, endA);
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]}, ${val * 0.1})`; ctx.lineWidth = 8; ctx.stroke();
+
+      // Center value
+      ctx.textAlign = 'center';
+      gt(freqLabels[i], gx, gy + 3, c[0], c[1], c[2], 0.4 + val * 0.4, 6);
     }
   }
 
-  // === RIGHT TOP: Waveform oscilloscope with glow ===
-  const rPanelX = w * 0.82;
-  const rPanelY = h * 0.12;
-  const rPanelW = w * 0.14;
-  const rPanelH = h * 0.32;
-  // Panel aura
-  const rAuraGrad = ctx.createLinearGradient(rPanelX - 10, 0, rPanelX + rPanelW + 10, 0);
-  rAuraGrad.addColorStop(0, 'transparent');
-  rAuraGrad.addColorStop(0.3, `rgba(0, 220, 245, ${0.012 + sb * 0.008})`);
-  rAuraGrad.addColorStop(0.7, `rgba(0, 220, 245, ${0.012 + sb * 0.008})`);
-  rAuraGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = rAuraGrad;
-  ctx.fillRect(rPanelX - 10, rPanelY - 10, rPanelW + 20, rPanelH + 20);
-  // Frame glow
-  ctx.strokeStyle = `rgba(0, 220, 245, ${0.05 + sb * 0.03})`;
-  ctx.lineWidth = 3; ctx.strokeRect(rPanelX, rPanelY, rPanelW, rPanelH);
-  ctx.strokeStyle = `rgba(0, 220, 245, ${0.15 + sb * 0.08})`;
-  ctx.lineWidth = 0.5; ctx.strokeRect(rPanelX, rPanelY, rPanelW, rPanelH);
-  glowText('WAVEFORM', rPanelX + 3, rPanelY - 3, 0, 220, 245, 0.5 + sb * 0.3, 7, 4);
+  // === RIGHT PANEL: Waveform + Energy Readout ===
+  const rpX = w * 0.79, rpY = h * 0.08, rpW = w * 0.18, rpH = h * 0.40;
+  ctx.strokeStyle = `rgba(0, 220, 245, ${0.12 + sb * 0.06})`; ctx.lineWidth = 0.5;
+  ctx.strokeRect(rpX, rpY, rpW, rpH);
+  ctx.textAlign = 'left';
+  gt('SIGNAL TRACE', rpX + 4, rpY - 4, 0, 220, 245, 0.5 + sb * 0.2, 6);
 
-  // Center baseline
-  const oMidY = rPanelY + rPanelH / 2;
-  ctx.beginPath(); ctx.moveTo(rPanelX, oMidY); ctx.lineTo(rPanelX + rPanelW, oMidY);
-  ctx.strokeStyle = 'rgba(0, 220, 245, 0.06)'; ctx.lineWidth = 0.3; ctx.stroke();
-
+  // Waveform oscilloscope
+  const oMidY = rpY + rpH / 2;
+  ctx.beginPath(); ctx.moveTo(rpX, oMidY); ctx.lineTo(rpX + rpW, oMidY);
+  ctx.strokeStyle = 'rgba(0, 220, 245, 0.05)'; ctx.lineWidth = 0.3; ctx.stroke();
   if (freqData) {
     ctx.beginPath();
-    for (let i = 0; i < rPanelW; i++) {
-      const idx = Math.floor((i / rPanelW) * 256);
+    for (let i = 0; i < rpW; i++) {
+      const idx = Math.floor((i / rpW) * 256);
       const val = ((freqData[idx] || 128) - 128) / 128;
-      const oy = oMidY + val * rPanelH * 0.38;
-      if (i === 0) ctx.moveTo(rPanelX + i, oy);
-      else ctx.lineTo(rPanelX + i, oy);
+      const oy = oMidY + val * rpH * 0.35;
+      i === 0 ? ctx.moveTo(rpX + i, oy) : ctx.lineTo(rpX + i, oy);
     }
-    // Wide glow
-    ctx.strokeStyle = `rgba(0, 220, 245, ${0.04 + sb * 0.03})`;
-    ctx.lineWidth = 8; ctx.stroke();
-    // Medium glow
-    ctx.strokeStyle = `rgba(0, 220, 245, ${0.08 + sb * 0.05})`;
-    ctx.lineWidth = 3; ctx.stroke();
-    // Crisp line
-    ctx.strokeStyle = `rgba(0, 220, 245, ${0.6 + sb * 0.3})`;
-    ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.strokeStyle = `rgba(0, 220, 245, ${0.04 + sb * 0.03})`; ctx.lineWidth = 6; ctx.stroke();
+    ctx.strokeStyle = `rgba(0, 220, 245, ${0.6 + sb * 0.3})`; ctx.lineWidth = 0.8; ctx.stroke();
   }
 
-  // === RIGHT BOTTOM: Band analysis meters with aura ===
-  const r2Y = rPanelY + rPanelH + 16;
-  const r2H = h * 0.32;
-  // Pink aura
-  const r2AuraGrad = ctx.createLinearGradient(rPanelX - 10, 0, rPanelX + rPanelW + 10, 0);
-  r2AuraGrad.addColorStop(0, 'transparent');
-  r2AuraGrad.addColorStop(0.3, `rgba(255, 45, 123, ${0.01 + sb * 0.008})`);
-  r2AuraGrad.addColorStop(0.7, `rgba(255, 45, 123, ${0.01 + sb * 0.008})`);
-  r2AuraGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = r2AuraGrad;
-  ctx.fillRect(rPanelX - 10, r2Y - 10, rPanelW + 20, r2H + 20);
-  ctx.strokeStyle = `rgba(255, 45, 123, ${0.05 + sb * 0.03})`;
-  ctx.lineWidth = 3; ctx.strokeRect(rPanelX, r2Y, rPanelW, r2H);
-  ctx.strokeStyle = `rgba(255, 45, 123, ${0.15 + sb * 0.08})`;
-  ctx.lineWidth = 0.5; ctx.strokeRect(rPanelX, r2Y, rPanelW, r2H);
-  glowText('BAND ANALYSIS', rPanelX + 3, r2Y - 3, 255, 45, 123, 0.5 + sb * 0.3, 7, 4);
+  // === RIGHT BOTTOM: Energy Orbs ===
+  const r2X = rpX, r2Y = rpY + rpH + 14, r2W = rpW, r2H = h * 0.44;
+  ctx.strokeStyle = `rgba(255, 45, 123, ${0.10 + sb * 0.06})`; ctx.lineWidth = 0.5;
+  ctx.strokeRect(r2X, r2Y, r2W, r2H);
+  gt('ENERGY MATRIX', r2X + 4, r2Y - 4, 255, 45, 123, 0.5 + sb * 0.2, 6);
 
-  const bandNames = ['SUB', 'BASS', 'MID', 'HIGH', 'NRG'];
-  const bandVals = [bands.sub, bands.bass, bands.mid, bands.high, bands.energy];
-  const bandColors = [[157,78,221],[183,110,255],[0,220,245],[0,180,216],[255,45,123]];
-  bandNames.forEach((name, i) => {
-    const by = r2Y + 12 + i * (r2H - 20) / 5;
-    const bh = (r2H - 20) / 5 - 4;
-    const val = bandVals[i];
-    const c = bandColors[i];
-    glowText(name, rPanelX + 3, by + bh * 0.75, c[0], c[1], c[2], 0.5 + val * 0.3, 7, 3);
-    const barX = rPanelX + 30;
-    const barW = (rPanelW - 38) * val;
-    // Bar glow
-    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]}, ${val * 0.06})`;
-    ctx.fillRect(barX - 2, by, barW + 6, bh + 2);
-    // Bar
-    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]}, ${0.3 + val * 0.5})`;
-    ctx.fillRect(barX, by + 1, barW, bh - 1);
-    glowText((val * 100).toFixed(0), rPanelX + rPanelW - 18, by + bh * 0.75, c[0], c[1], c[2], 0.5, 6, 2);
+  // 5 energy orbs in a vertical arrangement
+  const orbNames = ['SUB', 'BASS', 'MID', 'HIGH', 'NRG'];
+  const orbVals = [bands.sub, bands.bass, bands.mid, bands.high, bands.energy];
+  const orbColors = [[157,78,221],[183,110,255],[0,220,245],[0,180,216],[255,45,123]];
+  const orbSpacing = r2H / 5;
+  orbNames.forEach((name, i) => {
+    const ox = r2X + r2W * 0.35;
+    const oy = r2Y + orbSpacing * (i + 0.5);
+    const val = orbVals[i];
+    const c = orbColors[i];
+    const orbR = 6 + val * 12;
+
+    // Orb glow
+    const oG = ctx.createRadialGradient(ox, oy, 0, ox, oy, orbR * 2.5);
+    oG.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]}, ${0.15 + val * 0.3})`);
+    oG.addColorStop(0.5, `rgba(${c[0]},${c[1]},${c[2]}, ${val * 0.08})`);
+    oG.addColorStop(1, 'transparent');
+    ctx.fillStyle = oG; ctx.beginPath(); ctx.arc(ox, oy, orbR * 2.5, 0, Math.PI * 2); ctx.fill();
+    // Orb core
+    ctx.beginPath(); ctx.arc(ox, oy, orbR * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${Math.min(255,c[0]+60)},${Math.min(255,c[1]+60)},${Math.min(255,c[2]+60)}, ${0.5 + val * 0.4})`;
+    ctx.fill();
+
+    // Label + value bar
+    ctx.textAlign = 'left';
+    gt(name, r2X + r2W * 0.6, oy + 3, c[0], c[1], c[2], 0.5 + val * 0.3, 6);
+    const barX = r2X + r2W * 0.6, barW = r2W * 0.32 * val;
+    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]}, ${0.2 + val * 0.3})`;
+    ctx.fillRect(barX, oy + 6, barW, 2);
   });
 
-  // === TOP BAR: Glowing status ===
-  const statusY = h * 0.035;
+  // === TOP STATUS BAR ===
+  const statusY = h * 0.03;
   ctx.textAlign = 'left';
-  glowText('SYS://AETHER.CMD', w * 0.04, statusY, 0, 220, 245, 0.4 + sb * 0.2, 8, 5);
+  gt('AETHER // UFO-NAV', w * 0.04, statusY, 183, 110, 255, 0.35 + sb * 0.15, 7);
   ctx.textAlign = 'center';
-  glowText(`BEAT ${(bi * 100).toFixed(0)}%`, cx, statusY, 157, 78, 221, 0.4 + sb * 0.3, 8, 5);
+  // Rotating alien glyphs in header
+  const glyphs = '⟁⟐⟡⬡◈⟠';
+  const activeGlyph = glyphs[Math.floor(t * 0.5) % glyphs.length];
+  gt(`${activeGlyph} HARMONIC LOCK ${(bi * 100).toFixed(0)}% ${activeGlyph}`, cx, statusY, 0, 220, 245, 0.3 + sb * 0.25, 7);
   ctx.textAlign = 'right';
-  glowText(`NRG ${(bands.energy * 100).toFixed(0)}%`, w * 0.96, statusY, 255, 45, 123, 0.35 + sb * 0.3, 8, 5);
+  gt(`PWR ${(bands.energy * 100).toFixed(0)}%`, w * 0.96, statusY, 255, 45, 123, 0.3 + sb * 0.2, 7);
+
+  // === BOTTOM: Scrolling alien telemetry ===
   ctx.textAlign = 'left';
+  const feedY2 = h * 0.97;
+  const scrollX = (time * 0.03) % (w * 2);
+  const telemetry = `◈ FREQ-LOCK ${bands.mid > 0.5 ? 'ENGAGED' : 'SCANNING'} ◈ BASS-RESONANCE ${(bands.bass*100).toFixed(0)}% ◈ HARMONIC-SYNC ACTIVE ◈ NEURAL-LINK STABLE ◈ DIMENSION-SHIFT READY ◈`;
+  ctx.font = '6px "JetBrains Mono"';
+  ctx.fillStyle = `rgba(183, 110, 255, ${0.15 + sb * 0.08})`;
+  ctx.fillText(telemetry, -scrollX, feedY2);
+  ctx.fillText(telemetry, -scrollX + w * 2, feedY2);
 
-  // === BOTTOM: Scrolling data ticker with glow ===
-  const feedY = h * 0.97;
-  const scrollX = (time * 0.04) % (w * 2);
-  const feedText = '/// AETHER CMD v1.0 /// FFT-2048 ACTIVE /// BEAT DETECTION ONLINE /// FREQ ANALYSIS NOMINAL /// ALL SYSTEMS GO ///';
-  ctx.font = '7px "JetBrains Mono"';
-  // Glow layer
-  ctx.fillStyle = `rgba(0, 220, 245, ${0.05 + sb * 0.03})`;
-  ctx.filter = 'blur(4px)';
-  ctx.fillText(feedText, -scrollX, feedY);
-  ctx.fillText(feedText, -scrollX + w * 2, feedY);
-  ctx.filter = 'none';
-  // Crisp
-  ctx.fillStyle = `rgba(0, 220, 245, ${0.2 + sb * 0.1})`;
-  ctx.fillText(feedText, -scrollX, feedY);
-  ctx.fillText(feedText, -scrollX + w * 2, feedY);
-
-  // === Corner brackets with glow ===
-  const bS = 16;
-  const bA = 0.25 + sb * 0.2;
-  // Glow layer
-  ctx.strokeStyle = `rgba(0, 220, 245, ${bA * 0.2})`;
-  ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(6, 6+bS); ctx.lineTo(6,6); ctx.lineTo(6+bS,6); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w-6-bS,6); ctx.lineTo(w-6,6); ctx.lineTo(w-6,6+bS); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(6,h-6-bS); ctx.lineTo(6,h-6); ctx.lineTo(6+bS,h-6); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w-6-bS,h-6); ctx.lineTo(w-6,h-6); ctx.lineTo(w-6,h-6-bS); ctx.stroke();
-  // Crisp layer
-  ctx.strokeStyle = `rgba(0, 220, 245, ${bA})`;
-  ctx.lineWidth = 0.8;
-  ctx.beginPath(); ctx.moveTo(6, 6+bS); ctx.lineTo(6,6); ctx.lineTo(6+bS,6); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w-6-bS,6); ctx.lineTo(w-6,6); ctx.lineTo(w-6,6+bS); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(6,h-6-bS); ctx.lineTo(6,h-6); ctx.lineTo(6+bS,h-6); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(w-6-bS,h-6); ctx.lineTo(w-6,h-6); ctx.lineTo(w-6,h-6-bS); ctx.stroke();
-
-  // === Beat flash — full screen subtle flash on hard beats ===
-  if (bi > 0.6) {
-    const flashAlpha = (bi - 0.6) * 0.08;
-    ctx.fillStyle = `rgba(0, 220, 245, ${flashAlpha})`;
-    ctx.fillRect(0, 0, w, h);
+  // === FLOATING PARTICLES — cosmic dust ===
+  for (let i = 0; i < 30; i++) {
+    const px = (Math.sin(t * 0.2 + i * 2.1) * 0.5 + 0.5) * w;
+    const py = (Math.cos(t * 0.15 + i * 1.7) * 0.5 + 0.5) * h;
+    const ps = 0.5 + Math.sin(t * 3 + i) * 0.3;
+    const pa = 0.1 + Math.sin(t * 2 + i * 0.8) * 0.08;
+    ctx.beginPath(); ctx.arc(px, py, ps, 0, Math.PI * 2);
+    ctx.fillStyle = i % 3 === 0 ? `rgba(183,110,255,${pa})` : i % 3 === 1 ? `rgba(0,220,245,${pa})` : `rgba(255,45,123,${pa * 0.7})`;
+    ctx.fill();
   }
 
-  vizGlowIntensity = bands.energy * 0.35 + sb * 0.5;
+  // === BEAT PULSE — subtle cosmic flash ===
+  if (bi > 0.5) {
+    const flashR = ctx.createRadialGradient(cx, discY, 0, cx, discY, discR * 1.5);
+    flashR.addColorStop(0, `rgba(183, 110, 255, ${(bi - 0.5) * 0.1})`);
+    flashR.addColorStop(1, 'transparent');
+    ctx.fillStyle = flashR; ctx.fillRect(0, 0, w, h);
+  }
+
+  vizGlowIntensity = bands.energy * 0.3 + sb * 0.4;
   const panel = document.getElementById('vizPanel');
   if (panel) {
-    const glow = Math.round(vizGlowIntensity * 30);
-    panel.style.boxShadow = `0 0 ${glow}px rgba(0,220,245,${vizGlowIntensity * 0.5}), 0 0 ${glow*2}px rgba(157,78,221,${vizGlowIntensity * 0.2}), 0 0 ${glow*3}px rgba(0,180,216,${vizGlowIntensity * 0.08})`;
+    const glow = Math.round(vizGlowIntensity * 25);
+    panel.style.boxShadow = `0 0 ${glow}px rgba(183,110,255,${vizGlowIntensity * 0.4}), 0 0 ${glow*2}px rgba(123,47,190,${vizGlowIntensity * 0.15})`;
   }
 }
 
@@ -7591,35 +7546,78 @@ function initLyricRain(w, h) {
   }
 }
 
+let lyricFetchInProgress = false;
+
 async function fetchLyrics() {
   const t = currentQueue[currentQueueIndex];
   if (!t) return;
   if (t.id === lyricRainLastTrackId && lyricRainLyrics) return;
+  if (lyricFetchInProgress) return;
+  lyricFetchInProgress = true;
   lyricRainLastTrackId = t.id;
-  lyricRainLyrics = '';
   lyricRainLyricWords = [];
   lyricRainWordIndex = 0;
 
   const artist = t.artist || '';
   const title = t.title || '';
+  let source = '';
 
-  // Try LRCLIB (free lyrics API, no key needed)
+  // Try LRCLIB exact match (free lyrics API, no key needed)
   if (artist && title) {
     try {
       const lrcUrl = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`;
-      const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(lrcUrl, { signal: controller.signal });
-      clearTimeout(tid);
+      const res = await Promise.race([
+        fetch(lrcUrl),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000))
+      ]);
       if (res.ok) {
         const data = await res.json();
-        if (data.plainLyrics) {
+        if (data.plainLyrics && data.plainLyrics.length > 10) {
           lyricRainLyrics = data.plainLyrics;
-          console.log('Lyrics loaded from LRCLIB for:', artist, '-', title);
+          source = 'LRCLIB-exact';
+        } else if (data.syncedLyrics) {
+          // Strip timestamp tags from synced lyrics
+          lyricRainLyrics = data.syncedLyrics.replace(/\[\d{2}:\d{2}\.\d{2,3}\]\s*/g, '');
+          source = 'LRCLIB-synced';
         }
       }
     } catch(e) {
-      console.log('LRCLIB fetch failed:', e.message);
+      console.warn('LRCLIB exact:', e.message);
+    }
+  }
+
+  // Try LRCLIB search (fuzzy — catches remixes, live versions, slight mismatches)
+  if (!lyricRainLyrics && artist && title) {
+    try {
+      const q = `${artist} ${title}`.replace(/\(.*?\)/g, '').trim();
+      const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(q)}`;
+      const res = await Promise.race([
+        fetch(searchUrl),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 6000))
+      ]);
+      if (res.ok) {
+        const results = await res.json();
+        if (Array.isArray(results) && results.length > 0) {
+          const titleLow = title.toLowerCase().replace(/\(.*?\)/g, '').trim();
+          const artistLow = artist.toLowerCase();
+          const match = results.find(r =>
+            r.plainLyrics &&
+            r.artistName?.toLowerCase().includes(artistLow) &&
+            r.trackName?.toLowerCase().includes(titleLow)
+          ) || results.find(r =>
+            r.plainLyrics && r.trackName?.toLowerCase().includes(titleLow)
+          ) || results.find(r => r.plainLyrics);
+          if (match?.plainLyrics) {
+            lyricRainLyrics = match.plainLyrics;
+            source = 'LRCLIB-search';
+          } else if (match?.syncedLyrics) {
+            lyricRainLyrics = match.syncedLyrics.replace(/\[\d{2}:\d{2}\.\d{2,3}\]\s*/g, '');
+            source = 'LRCLIB-search-synced';
+          }
+        }
+      }
+    } catch(e) {
+      console.warn('LRCLIB search:', e.message);
     }
   }
 
@@ -7627,63 +7625,122 @@ async function fetchLyrics() {
   if (!lyricRainLyrics) {
     try {
       const resp = await SUBSONIC.get('getLyrics', { artist, title });
-      if (resp && resp.lyrics && resp.lyrics.value) {
+      if (resp?.lyrics?.value && resp.lyrics.value.length > 20) {
         lyricRainLyrics = resp.lyrics.value;
+        source = 'Subsonic';
       }
     } catch(e) {}
   }
 
-  // Final fallback: use track title + artist as repeating text
+  // Final fallback: generate atmospheric text from track info
   if (!lyricRainLyrics) {
-    lyricRainLyrics = (artist ? artist + ' — ' : '') + (title || 'AETHER');
+    const words = [];
+    if (title) words.push(...title.split(/\s+/));
+    if (artist) words.push(...artist.split(/\s+/));
+    const album = t.album;
+    if (album) words.push(...album.split(/\s+/));
+    const expanded = [];
+    for (let i = 0; i < 8; i++) expanded.push(...words);
+    lyricRainLyrics = expanded.join(' ');
+    source = 'fallback';
   }
 
   // Split into words
   lyricRainLyricWords = lyricRainLyrics.split(/\s+/).filter(w => w.length > 0);
   if (lyricRainLyricWords.length === 0) lyricRainLyricWords = ['AETHER'];
+  lyricFetchInProgress = false;
+  console.log(`Lyrics [${source}]: ${lyricRainLyricWords.length} words for "${artist} - ${title}"`);
 }
 
 function drawLyricRain(ctx, w, h, time) {
-  // Dark fade — trail persistence
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+  // Dark fade — trail persistence (faster clear on beats for snappier feel)
+  const fadeAlpha = 0.05 + bands.energy * 0.03 + beatIntensity * 0.04;
+  ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
   ctx.fillRect(0, 0, w, h);
 
   if (!lyricRainColumns) initLyricRain(w, h);
 
   const bi = beatIntensity;
   const fs = lyricRainFontSize;
+  const tt = time * 0.001;
 
   // Fetch lyrics for current track (non-blocking)
   const t = currentQueue[currentQueueIndex];
   if (t && t.id !== lyricRainLastTrackId) fetchLyrics();
 
-  // Speed multiplier based on audio
-  const speedMul = 0.8 + bands.energy * 1.5 + bi * 0.5;
+  // Speed multiplier based on audio — more dramatic range
+  const speedMul = 0.6 + bands.energy * 2.0 + bi * 1.2;
+
+  // === BASS SHOCKWAVE — horizontal ripple traveling down screen on bass hits ===
+  if (!drawLyricRain._shockwaves) drawLyricRain._shockwaves = [];
+  if (bands.bass > 0.6 && bi > 0.45 && Math.random() < 0.3) {
+    drawLyricRain._shockwaves.push({ y: 0, born: time, speed: 3 + bands.bass * 5 });
+  }
+  drawLyricRain._shockwaves = drawLyricRain._shockwaves.filter(sw => {
+    sw.y += sw.speed * (1 + bi);
+    if (sw.y > h + 30) return false;
+    const swAge = (time - sw.born) / 1500;
+    const swAlpha = Math.max(0, 0.4 - swAge * 0.4);
+    // Horizontal glow line
+    const swGrad = ctx.createLinearGradient(0, sw.y - 15, 0, sw.y + 15);
+    swGrad.addColorStop(0, 'transparent');
+    swGrad.addColorStop(0.4, `rgba(0, 220, 245, ${swAlpha * 0.3})`);
+    swGrad.addColorStop(0.5, `rgba(0, 255, 255, ${swAlpha})`);
+    swGrad.addColorStop(0.6, `rgba(0, 220, 245, ${swAlpha * 0.3})`);
+    swGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = swGrad;
+    ctx.fillRect(0, sw.y - 15, w, 30);
+    return true;
+  });
+
+  // === BEAT COLUMN SURGE — random columns accelerate on beats ===
+  if (!drawLyricRain._surgeColumns) drawLyricRain._surgeColumns = new Set();
+  if (bi > 0.5 && Math.random() < 0.4) {
+    const surgeCount = 3 + Math.floor(bi * 8);
+    for (let s = 0; s < surgeCount; s++) {
+      const idx = Math.floor(Math.random() * lyricRainColumns.length);
+      drawLyricRain._surgeColumns.add(idx);
+      lyricRainColumns[idx]._surgeUntil = time + 300 + bi * 400;
+      lyricRainColumns[idx]._surgeSpeed = 4 + Math.random() * 6;
+    }
+  }
 
   // Draw falling columns
   ctx.font = `${fs}px "JetBrains Mono", monospace`;
   ctx.textAlign = 'center';
 
+  // Global brightness pulse on beat
+  const beatBrightPulse = 1 + bi * 0.6;
+
   lyricRainColumns.forEach((col, colIdx) => {
     const x = colIdx * fs + fs / 2;
+    const isSurging = col._surgeUntil && time < col._surgeUntil;
+    const colSpeed = isSurging ? col._surgeSpeed : col.speed;
 
     // Advance column
-    col.y += col.speed * speedMul;
+    col.y += colSpeed * speedMul;
     if (col.y > h + fs * 5) {
       col.y = -fs * (5 + Math.random() * 10);
       col.speed = 1 + Math.random() * 3;
       col.isCyan = Math.random() > 0.4;
+      col._surgeUntil = 0;
     }
 
-    // Randomly mutate chars
-    if (Math.random() < 0.04) {
+    // Mutation rate scales with energy — more chaotic when loud
+    const mutRate = 0.03 + bands.energy * 0.08 + bi * 0.06;
+    if (Math.random() < mutRate) {
       const mutIdx = Math.floor(Math.random() * col.chars.length);
       col.chars[mutIdx] = lyricRainChars[Math.floor(Math.random() * lyricRainChars.length)];
     }
 
+    // Frequency-mapped brightness per column (low freq cols = bass, high = treble)
+    const freqIdx = Math.floor((colIdx / lyricRainColumns.length) * 128);
+    const freqVal = freqData ? (freqData[freqIdx] / 255) : 0;
+    const freqBoost = 1 + freqVal * 0.8;
+
     // Draw characters in this column
     const startRow = Math.floor(col.y / fs);
-    const tailLen = 15 + Math.floor(bands.energy * 10);
+    const tailLen = 12 + Math.floor(bands.energy * 14) + Math.floor(freqVal * 5);
     for (let j = 0; j < tailLen; j++) {
       const rowY = (startRow - j) * fs;
       if (rowY < -fs || rowY > h + fs) continue;
@@ -7692,27 +7749,34 @@ function drawLyricRain(ctx, w, h, time) {
 
       const fade = 1 - j / tailLen;
       if (j === 0) {
-        // Head — bright white-cyan or white-purple
-        const headAlpha = (0.9 + bi * 0.1) * col.brightness;
-        ctx.fillStyle = col.isCyan
-          ? `rgba(200, 255, 255, ${headAlpha})`
-          : `rgba(230, 200, 255, ${headAlpha})`;
-        ctx.shadowColor = col.isCyan ? 'rgba(0, 220, 245, 0.8)' : 'rgba(183, 110, 255, 0.8)';
-        ctx.shadowBlur = 12 + bi * 8;
+        // Head — bright, frequency-reactive glow
+        const headAlpha = Math.min(1, (0.9 + bi * 0.1) * col.brightness * beatBrightPulse);
+        if (isSurging) {
+          // Surging columns get hot white heads
+          ctx.fillStyle = `rgba(255, 255, 255, ${headAlpha})`;
+          ctx.shadowColor = 'rgba(200, 240, 255, 0.95)';
+          ctx.shadowBlur = 20 + bi * 15;
+        } else {
+          ctx.fillStyle = col.isCyan
+            ? `rgba(200, 255, 255, ${headAlpha})`
+            : `rgba(230, 200, 255, ${headAlpha})`;
+          ctx.shadowColor = col.isCyan ? 'rgba(0, 220, 245, 0.8)' : 'rgba(183, 110, 255, 0.8)';
+          ctx.shadowBlur = 12 + bi * 12 + freqVal * 8;
+        }
       } else if (j < 3) {
-        // Near-head — bright tinted
-        const nearAlpha = fade * 0.8 * col.brightness;
+        // Near-head — frequency-tinted brightness
+        const nearAlpha = Math.min(1, fade * (0.8 + freqVal * 0.3) * col.brightness * beatBrightPulse);
         ctx.fillStyle = col.isCyan
-          ? `rgba(0, 240, 255, ${nearAlpha})`
-          : `rgba(183, 130, 255, ${nearAlpha})`;
+          ? `rgba(0, ${200 + Math.floor(freqVal * 55)}, 255, ${nearAlpha})`
+          : `rgba(${150 + Math.floor(freqVal * 55)}, 110, 255, ${nearAlpha})`;
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
       } else {
-        // Trail — dimming
-        const trailAlpha = fade * fade * 0.5 * col.brightness;
+        // Trail — bass columns glow warmer, treble columns shimmer
+        const trailAlpha = Math.min(1, fade * fade * (0.5 + freqVal * 0.3) * col.brightness * freqBoost);
         ctx.fillStyle = col.isCyan
-          ? `rgba(0, 180, 200, ${trailAlpha})`
-          : `rgba(120, 60, 180, ${trailAlpha})`;
+          ? `rgba(0, ${140 + Math.floor(freqVal * 60)}, ${180 + Math.floor(freqVal * 40)}, ${trailAlpha})`
+          : `rgba(${90 + Math.floor(freqVal * 50)}, ${40 + Math.floor(freqVal * 30)}, ${150 + Math.floor(freqVal * 50)}, ${trailAlpha})`;
         ctx.shadowColor = 'transparent';
         ctx.shadowBlur = 0;
       }
@@ -7722,11 +7786,45 @@ function drawLyricRain(ctx, w, h, time) {
     ctx.shadowColor = 'transparent';
   });
 
+  // === FREQUENCY SPECTRUM REFLECTION — subtle bar graph at bottom ===
+  if (freqData) {
+    const barCount = 64;
+    const barW = w / barCount;
+    for (let i = 0; i < barCount; i++) {
+      const val = freqData[i * 2] / 255;
+      if (val < 0.05) continue;
+      const barH = val * h * 0.08;
+      const bx = i * barW;
+      const by = h - barH;
+      const hueShift = i / barCount;
+      const r = hueShift < 0.33 ? 157 : hueShift < 0.66 ? 0 : 183;
+      const g = hueShift < 0.33 ? 78 : hueShift < 0.66 ? 220 : 110;
+      const b2 = hueShift < 0.33 ? 221 : hueShift < 0.66 ? 245 : 255;
+      ctx.fillStyle = `rgba(${r},${g},${b2}, ${0.06 + val * 0.12})`;
+      ctx.fillRect(bx, by, barW - 1, barH);
+    }
+  }
+
+  // === HORIZONTAL SCAN LINE — sweeps with the beat ===
+  if (!drawLyricRain._scanY) drawLyricRain._scanY = 0;
+  drawLyricRain._scanY += (1.5 + bands.energy * 3) * speedMul * 0.3;
+  if (drawLyricRain._scanY > h) drawLyricRain._scanY = 0;
+  const scanAlpha = 0.03 + bi * 0.06;
+  ctx.fillStyle = `rgba(0, 220, 245, ${scanAlpha})`;
+  ctx.fillRect(0, drawLyricRain._scanY - 1, w, 2);
+  // Scan line glow
+  const scanGlow = ctx.createLinearGradient(0, drawLyricRain._scanY - 8, 0, drawLyricRain._scanY + 8);
+  scanGlow.addColorStop(0, 'transparent');
+  scanGlow.addColorStop(0.5, `rgba(0, 220, 245, ${scanAlpha * 0.3})`);
+  scanGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = scanGlow;
+  ctx.fillRect(0, drawLyricRain._scanY - 8, w, 16);
+
   // ═══ LYRIC WORDS materializing out of the rain ═══
-  // Spawn new words on beat or periodically
-  const wordInterval = 1200 - bands.energy * 400; // ms between words
-  if (lyricRainLyricWords.length > 0 && (time - lyricRainWordTimer > wordInterval || bi > 0.5)) {
-    if (time - lyricRainWordTimer > Math.max(300, wordInterval) || bi > 0.6) {
+  // Spawn new words on beat or periodically — more responsive timing
+  const wordInterval = 900 - bands.energy * 500; // ms between words
+  if (lyricRainLyricWords.length > 0 && (time - lyricRainWordTimer > wordInterval || bi > 0.45)) {
+    if (time - lyricRainWordTimer > Math.max(200, wordInterval) || bi > 0.55) {
       lyricRainWordTimer = time;
       const word = lyricRainLyricWords[lyricRainWordIndex % lyricRainLyricWords.length];
       lyricRainWordIndex++;
@@ -7734,14 +7832,32 @@ function drawLyricRain(ctx, w, h, time) {
       // Position: random horizontal, centered vertical band
       lyricRainActiveWords.push({
         text: word,
-        x: w * 0.15 + Math.random() * w * 0.7,
-        y: h * 0.25 + Math.random() * h * 0.5,
+        x: w * 0.12 + Math.random() * w * 0.76,
+        y: h * 0.2 + Math.random() * h * 0.55,
         born: time,
-        duration: 2500 + word.length * 100,
-        size: Math.max(24, Math.min(60, w * 0.035 + bi * 15)),
+        duration: 2200 + word.length * 80,
+        size: Math.max(24, Math.min(64, w * 0.035 + bi * 20)),
         isCyan: Math.random() > 0.35,
-        revealed: 0, // characters revealed so far
+        revealed: 0,
+        beatBorn: bi, // remember beat intensity at birth for scaling
       });
+
+      // On strong beats, also spawn a second word for burst effect
+      if (bi > 0.7 && lyricRainLyricWords.length > 1) {
+        const word2 = lyricRainLyricWords[lyricRainWordIndex % lyricRainLyricWords.length];
+        lyricRainWordIndex++;
+        lyricRainActiveWords.push({
+          text: word2,
+          x: w * 0.12 + Math.random() * w * 0.76,
+          y: h * 0.2 + Math.random() * h * 0.55,
+          born: time,
+          duration: 2200 + word2.length * 80,
+          size: Math.max(20, Math.min(50, w * 0.028 + bi * 12)),
+          isCyan: Math.random() > 0.35,
+          revealed: 0,
+          beatBorn: bi,
+        });
+      }
     }
   }
 
@@ -7751,41 +7867,49 @@ function drawLyricRain(ctx, w, h, time) {
     if (age > word.duration) return false;
 
     const life = age / word.duration;
-    // Phase 1: letter-by-letter reveal (first 40% of life)
-    // Phase 2: full display (40-75%)
-    // Phase 3: fade out (75-100%)
     const revealPhase = Math.min(1, life / 0.4);
     const charsToShow = Math.ceil(revealPhase * word.text.length);
     const fadeOut = life > 0.75 ? 1 - (life - 0.75) / 0.25 : 1;
     const fadeIn = Math.min(1, life / 0.1);
     const alpha = fadeIn * fadeOut;
 
-    ctx.font = `bold ${word.size}px "Orbitron", sans-serif`;
+    // Word scale pulses subtly with current beat
+    const wordScale = 1 + bi * 0.08;
+    const scaledSize = word.size * wordScale;
+
+    ctx.font = `bold ${scaledSize}px "Orbitron", sans-serif`;
     ctx.textAlign = 'center';
 
     // Each character
     for (let c = 0; c < word.text.length; c++) {
       const ch = word.text[c];
-      const charX = word.x + (c - word.text.length / 2) * (word.size * 0.65);
-      const charY = word.y;
+      const charX = word.x + (c - word.text.length / 2) * (scaledSize * 0.65);
+      // Slight vertical wave per character reacting to audio
+      const charWave = Math.sin(tt * 4 + c * 0.8) * bands.energy * 3;
+      const charY = word.y + charWave;
 
       if (c < charsToShow) {
-        // Revealed character — bright and glowing
         const charAge = revealPhase - (c / word.text.length);
-        const freshness = Math.max(0, 1 - charAge * 3); // freshly revealed chars glow brighter
+        const freshness = Math.max(0, 1 - charAge * 3);
 
-        // Glow
-        ctx.shadowColor = word.isCyan ? 'rgba(0, 220, 245, 0.9)' : 'rgba(183, 110, 255, 0.9)';
-        ctx.shadowBlur = 15 + freshness * 20 + bi * 10;
+        // Glow — intensified with current beat
+        ctx.shadowColor = word.isCyan ? `rgba(0, 220, 245, ${0.8 + bi * 0.2})` : `rgba(183, 110, 255, ${0.8 + bi * 0.2})`;
+        ctx.shadowBlur = 15 + freshness * 25 + bi * 15;
 
-        // Main color — white when fresh, colored when settled
         const bright = freshness > 0.3 ? 255 : (word.isCyan ? 0 : 183);
         const g = freshness > 0.3 ? 255 : (word.isCyan ? 240 : 110);
         const b = freshness > 0.3 ? 255 : (word.isCyan ? 255 : 255);
-        ctx.fillStyle = `rgba(${bright}, ${g}, ${b}, ${alpha * (0.8 + freshness * 0.2)})`;
+        ctx.fillStyle = `rgba(${bright}, ${g}, ${b}, ${alpha * (0.85 + freshness * 0.15)})`;
         ctx.fillText(ch, charX, charY);
+
+        // Double-strike glow layer on beats for revealed chars
+        if (bi > 0.4 && freshness > 0.1) {
+          ctx.shadowBlur = 30 + bi * 20;
+          ctx.globalAlpha = alpha * 0.15 * bi;
+          ctx.fillText(ch, charX, charY);
+          ctx.globalAlpha = 1;
+        }
       } else {
-        // Unrevealed — show random matrix char, dim
         const rndCh = lyricRainChars[Math.floor(Math.random() * lyricRainChars.length)];
         ctx.shadowBlur = 0;
         ctx.shadowColor = 'transparent';
@@ -7801,22 +7925,42 @@ function drawLyricRain(ctx, w, h, time) {
     return true;
   });
 
-  // Ambient glow — subtle cyan/purple gradient from bottom
-  const ambH = h * 0.3;
+  // === AMBIENT GLOW — reactive bottom and top gradients ===
+  const ambH = h * 0.35;
   const ambGrad = ctx.createLinearGradient(0, h, 0, h - ambH);
-  ambGrad.addColorStop(0, `rgba(0, 180, 216, ${0.02 + bands.bass * 0.02})`);
-  ambGrad.addColorStop(0.5, `rgba(123, 47, 190, ${0.01 + bands.energy * 0.015})`);
+  ambGrad.addColorStop(0, `rgba(0, 180, 216, ${0.03 + bands.bass * 0.04 + bi * 0.02})`);
+  ambGrad.addColorStop(0.5, `rgba(123, 47, 190, ${0.015 + bands.energy * 0.025})`);
   ambGrad.addColorStop(1, 'transparent');
   ctx.fillStyle = ambGrad;
   ctx.fillRect(0, h - ambH, w, ambH);
+  // Top glow on treble
+  const topH = h * 0.15;
+  const topGrad = ctx.createLinearGradient(0, 0, 0, topH);
+  topGrad.addColorStop(0, `rgba(183, 110, 255, ${0.01 + bands.high * 0.03})`);
+  topGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, w, topH);
 
-  // Beat flash
-  if (bi > 0.65) {
-    ctx.fillStyle = `rgba(0, 220, 245, ${(bi - 0.65) * 0.06})`;
+  // === BEAT FLASH — stronger, with color variation ===
+  if (bi > 0.5) {
+    const flashStrength = (bi - 0.5) * 0.12;
+    // Alternate between cyan and purple flash
+    if (Math.sin(tt * 8) > 0) {
+      ctx.fillStyle = `rgba(0, 220, 245, ${flashStrength})`;
+    } else {
+      ctx.fillStyle = `rgba(183, 110, 255, ${flashStrength * 0.8})`;
+    }
     ctx.fillRect(0, 0, w, h);
   }
 
-  vizGlowIntensity = bands.energy * 0.25 + bi * 0.4;
+  // === CORNER VIGNETTE — darkens edges, brightens center focus ===
+  const vigGrad = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.9);
+  vigGrad.addColorStop(0, 'transparent');
+  vigGrad.addColorStop(1, `rgba(0, 0, 0, ${0.15 + bands.energy * 0.1})`);
+  ctx.fillStyle = vigGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  vizGlowIntensity = bands.energy * 0.3 + bi * 0.5;
 }
 
 function drawViz(time) {
@@ -7830,6 +7974,8 @@ function drawViz(time) {
     vizCtx.clearRect(0, 0, vizW, vizH);
   } else {
     sheepVideo.style.display = 'none';
+    sheepVideo.style.filter = '';
+    sheepVideo.style.transform = '';
     if (!trailScenes.includes(currentScene)) {
       vizCtx.clearRect(0, 0, vizW, vizH);
     }

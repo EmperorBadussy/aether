@@ -49,13 +49,13 @@ Every pixel is intentional. Every animation is buttery. Every visualizer is a ca
 | 7 | **Aurora Borealis** | Northern lights curtains with subtle stars |
 | 8 | **DNA Helix** | Double-strand helix with cross-links, 3D camera orbit |
 | 9 | **Cosmic Mandala** | Sacred geometry patterns radiating from center |
-| 10 | **Electric Sheep** | Video-based fractal flame playback |
+| 10 | **Electric Sheep** | Video-based fractal flames — audio-reactive speed, hue-rotation, zoom pulse, beat rings |
 | 11 | **Bio-Genesis** | Organic organisms with membranes, mitochondria, flagella |
-| 12 | **Command Deck** | UFO HUD dashboard — radar, oscilloscope, frequency bars |
+| 12 | **Command Deck** | UFO cockpit — holographic disc, alien telemetry, circular gauges, energy orbs |
 | 13 | **Void Pulse II** | Clean concentric ripples — dramatic slow expansion with color-shifting rings |
 | 14 | **Neural Web II** | High-reactivity geometric network — multi-color nodes with signal pulses |
 | 15 | **DNA Helix II** | Vertical double-strand helix — cyan/magenta strands with depth layering |
-| 16 | **Lyric Rain** | Matrix-style falling letter rain — lyrics materialize out of cyan/purple cascade |
+| 16 | **Lyric Rain** | Matrix rain with bass shockwaves, frequency-mapped columns, scan lines — LRCLIB lyrics materialize on beats |
 
 Auto-rotate cycles through scenes, or pin your favorite. Every scene has unique beat detection behavior and glow effects that bleed into the UI panel borders.
 
@@ -67,10 +67,11 @@ Auto-rotate cycles through scenes, or pin your favorite. Every scene has unique 
  AUDIO
   ├─ Gapless playback (crossfade, dual audio element strategy)
   ├─ Waveform seek bar (SoundCloud-style, full-width)
-  ├─ 10-band parametric EQ (Web Audio API BiquadFilters)
+  ├─ 10-band parametric EQ with 10 presets (Web Audio API BiquadFilters)
   ├─ Beat detection (FFT analysis, band extraction)
   ├─ Format support: FLAC, MP3, OGG, AAC, WAV, OPUS
   ├─ Volume control with mute toggle
+  ├─ LRCLIB lyrics integration (auto-fetch with search fallback)
   └─ RHYTHMIC BINAURAL BRAINWAVE ENGINE (see below)
 
  LIBRARY
@@ -93,7 +94,7 @@ Auto-rotate cycles through scenes, or pin your favorite. Every scene has unique 
 
  TECH
   ├─ Electron 33 (frameless, no titlebar)
-  ├─ Single-file renderer (player.html — ~5700 lines)
+  ├─ Single-file renderer (player.html — ~8000 lines)
   ├─ Canvas 2D visualizers (no Three.js dependency)
   ├─ Web Audio API (AnalyserNode, FFT 2048)
   ├─ System tray with minimize-to-tray
@@ -169,7 +170,7 @@ Build your own layers. Mix with your music. The visualizers react to the binaura
  AETHER/
   ├── main.js          # Electron main process — window, tray, IPC
   ├── preload.js       # Context bridge — safe IPC + filesystem access
-  ├── player.html      # THE APP — 5700+ lines of UI, audio, visualizers
+  ├── player.html      # THE APP — 8000+ lines of UI, audio, visualizers
   ├── package.json     # Electron + builder config
   ├── icon.ico         # App icon (purple on black)
   ├── Launch.vbs       # Silent launcher (no console window)
@@ -289,7 +290,7 @@ Outputs to `dist/` — NSIS installer for Windows x64.
 - [ ] Media key support (play/pause/next/prev)
 - [ ] Auto-updater
 - [ ] Virtual scrolling for 100k+ track lists
-- [ ] Lyrics integration
+- [x] Lyrics integration (LRCLIB)
 - [ ] Scrobbling (Last.fm / ListenBrainz)
 - [ ] Plugin system for custom visualizers
 
