@@ -1452,6 +1452,134 @@ body::after {
   background: var(--purple-dim); transition: all 0.1s;
 }
 .rhythm-layer-indicator.on { background: var(--cyan-bright); box-shadow: 0 0 8px rgba(0,220,245,0.5); }
+
+/* ============ EQUALIZER PANEL ============ */
+.eq-toggle-btn {
+  background: none; border: 1px solid var(--purple-dim); border-radius: 4px;
+  padding: 3px 8px; cursor: pointer; transition: all 0.2s var(--ease-smooth);
+  display: flex; align-items: center; gap: 4px;
+}
+.eq-toggle-btn:hover { border-color: var(--purple-bright); box-shadow: var(--glow-subtle); }
+.eq-toggle-btn.active { border-color: var(--cyan-bright); box-shadow: var(--cyan-glow); }
+.eq-toggle-btn svg { width: 14px; height: 14px; stroke: var(--purple-muted); fill: none; stroke-width: 1.5; transition: stroke 0.2s; }
+.eq-toggle-btn:hover svg { stroke: var(--purple-bright); }
+.eq-toggle-btn.active svg { stroke: var(--cyan-bright); }
+.eq-toggle-btn span { font-family: var(--font-mono); font-size: 0.55rem; color: var(--purple-muted); letter-spacing: 0.05em; transition: color 0.2s; }
+.eq-toggle-btn:hover span { color: var(--purple-bright); }
+.eq-toggle-btn.active span { color: var(--cyan-bright); }
+
+.eq-panel {
+  position: fixed; bottom: var(--nowplaying-h); right: 12px;
+  width: 500px; max-width: calc(100vw - 24px);
+  background: rgba(9,9,15,0.95); border: 1px solid var(--purple-dim);
+  border-radius: 16px 16px 0 0; border-bottom: none;
+  box-shadow: 0 -4px 40px rgba(0,0,0,0.7), var(--glow-subtle);
+  backdrop-filter: blur(20px) saturate(1.2);
+  z-index: 500;
+  transform: translateY(calc(100% + 12px));
+  opacity: 0; pointer-events: none;
+  transition: transform 0.35s var(--ease-smooth), opacity 0.3s var(--ease-smooth);
+}
+.eq-panel.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+
+.eq-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px 10px; border-bottom: 1px solid var(--purple-dim);
+}
+.eq-title { font-family: var(--font-display); font-weight: 700; font-size: 0.75rem; color: var(--purple-white); letter-spacing: 0.12em; }
+.eq-close { background: none; border: none; cursor: pointer; padding: 4px; }
+.eq-close svg { width: 14px; height: 14px; stroke: var(--purple-muted); fill: none; stroke-width: 1.5; transition: stroke 0.2s; }
+.eq-close:hover svg { stroke: var(--purple-white); }
+
+.eq-presets {
+  display: flex; gap: 6px; padding: 10px 20px; overflow-x: auto;
+  border-bottom: 1px solid rgba(54,32,80,0.3);
+}
+.eq-presets::-webkit-scrollbar { height: 2px; }
+.eq-preset-btn {
+  background: var(--bg-raised); border: 1px solid var(--purple-dim); border-radius: 6px;
+  padding: 4px 10px; cursor: pointer; font-family: var(--font-mono); font-size: 0.55rem;
+  color: var(--purple-hot); white-space: nowrap; transition: all 0.2s var(--ease-smooth); letter-spacing: 0.03em;
+}
+.eq-preset-btn:hover { border-color: var(--purple-bright); box-shadow: var(--glow-subtle); color: var(--purple-white); }
+.eq-preset-btn.active { border-color: var(--cyan-bright); box-shadow: var(--cyan-glow); color: var(--cyan-bright); background: rgba(0,220,245,0.05); }
+
+.eq-bands {
+  display: flex; align-items: stretch; justify-content: space-around;
+  padding: 14px 16px 6px; position: relative;
+}
+.eq-bands::before {
+  content: ''; position: absolute; left: 16px; right: 16px; top: 50%;
+  height: 1px; background: var(--purple-dim); pointer-events: none; opacity: 0.5;
+}
+.eq-band {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1;
+  position: relative; z-index: 1;
+}
+.eq-band-db {
+  font-family: var(--font-mono); font-size: 0.5rem; color: var(--cyan-bright);
+  text-shadow: 0 0 6px rgba(0,220,245,0.3); min-width: 28px; text-align: center;
+  height: 14px; line-height: 14px; transition: color 0.15s;
+}
+.eq-band-db.positive { color: var(--cyan-bright); }
+.eq-band-db.negative { color: var(--magenta-bright); }
+.eq-band-db.zero { color: var(--purple-muted); }
+
+.eq-slider-wrap {
+  width: 28px; height: 130px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.eq-slider-wrap input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 130px; height: 4px;
+  background: linear-gradient(90deg, var(--purple-dim) 0%, var(--bg-input) 50%, var(--purple-dim) 100%);
+  border-radius: 2px; outline: none; margin: 0;
+  transform: rotate(-90deg);
+  transform-origin: center center;
+}
+.eq-slider-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  background: var(--purple-vivid); border-radius: 50%; cursor: pointer;
+  box-shadow: 0 0 8px rgba(183,110,255,0.5);
+  transition: box-shadow 0.15s, transform 0.15s, background 0.15s;
+}
+.eq-slider-wrap input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 16px rgba(183,110,255,0.8); transform: scale(1.25);
+}
+.eq-slider-wrap input[type="range"]:active::-webkit-slider-thumb {
+  background: var(--cyan-bright); box-shadow: 0 0 20px rgba(0,220,245,0.7);
+}
+
+.eq-band-freq {
+  font-family: var(--font-mono); font-size: 0.45rem; color: var(--purple-muted);
+  letter-spacing: 0.02em; text-align: center; white-space: nowrap;
+}
+.eq-band-line {
+  position: absolute; width: 2px; border-radius: 1px;
+  left: 50%; transform: translateX(-50%);
+  transition: height 0.15s var(--ease-smooth), background 0.15s;
+  pointer-events: none; opacity: 0.4;
+}
+
+.eq-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 20px 12px; border-top: 1px solid rgba(54,32,80,0.3);
+}
+.eq-reset-btn {
+  background: none; border: 1px solid var(--purple-dim); border-radius: 4px;
+  padding: 4px 12px; cursor: pointer; font-family: var(--font-mono); font-size: 0.55rem;
+  color: var(--purple-muted); transition: all 0.2s; letter-spacing: 0.05em;
+}
+.eq-reset-btn:hover { border-color: var(--magenta-bright); color: var(--magenta-bright); box-shadow: var(--magenta-glow); }
+.eq-status { font-family: var(--font-mono); font-size: 0.5rem; color: var(--purple-muted); letter-spacing: 0.05em; }
+
+@media (max-width:600px) {
+  .eq-panel { width: 100%; right: 0; max-width: 100vw; border-radius: 12px 12px 0 0; }
+  .eq-slider-wrap { height: 100px; }
+  .eq-slider-wrap input[type="range"] { width: 100px; }
+  .eq-bands { padding: 10px 8px 4px; }
+  .eq-band-freq { font-size: 0.4rem; }
+}
 </style>
 </head>
 <body>
@@ -1618,8 +1746,26 @@ body::after {
         <button class="volume-btn" id="btnMute"><svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>
         <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="75">
       </div>
+      <button class="eq-toggle-btn" id="eqToggleBtn" title="Equalizer">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        <span>EQ</span>
+      </button>
       <div class="quality-badge" id="qualityBadge">--</div>
     </div>
+  </div>
+</div>
+
+<!-- EQUALIZER PANEL -->
+<div class="eq-panel" id="eqPanel">
+  <div class="eq-header">
+    <div class="eq-title">EQUALIZER</div>
+    <button class="eq-close" id="eqClose"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="eq-presets" id="eqPresets"></div>
+  <div class="eq-bands" id="eqBands"></div>
+  <div class="eq-footer">
+    <button class="eq-reset-btn" onclick="resetEq()">RESET</button>
+    <span class="eq-status" id="eqStatus">10-BAND PARAMETRIC</span>
   </div>
 </div>
 
@@ -2072,7 +2218,119 @@ let eqGains = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // dB, range -12 to +12
 function setEqBand(bandIndex, gainDb) {
   eqGains[bandIndex] = Math.max(-12, Math.min(12, gainDb));
   if (eqFilters[bandIndex]) eqFilters[bandIndex].gain.value = eqGains[bandIndex];
+  saveEqState();
+  updateEqSliderVisuals(bandIndex);
 }
+
+// ============ EQ PRESETS & UI ============
+const EQ_PRESETS = {
+  'Flat':       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  'Bass Boost': [6, 5, 3, 1, 0, 0, 0, 0, 0, 0],
+  'Treble':     [0, 0, 0, 0, 0, 1, 3, 4, 5, 6],
+  'V-Shape':    [5, 4, 1, -1, -3, -3, -1, 1, 4, 5],
+  'Vocal':      [-2, -1, 0, 2, 4, 4, 2, 0, -1, -2],
+  'Loudness':   [4, 3, 0, 0, -2, 0, -1, 0, 3, 4],
+  'Rock':       [4, 3, 1, 0, -1, 0, 2, 3, 4, 3],
+  'Electronic': [5, 4, 2, 0, -2, 0, 1, 3, 4, 5],
+  'Acoustic':   [3, 2, 1, 1, 0, 1, 1, 2, 3, 2],
+  'Night':      [-3, -2, 0, 2, 3, 3, 2, 0, -2, -4],
+};
+
+let currentEqPreset = 'Flat';
+
+const EQ_FREQ_LABELS = ['31', '62', '125', '250', '500', '1K', '2K', '4K', '8K', '16K'];
+
+function saveEqState() {
+  localStorage.setItem('aether_eq', JSON.stringify({ gains: eqGains, preset: currentEqPreset }));
+}
+
+function loadEqState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('aether_eq'));
+    if (saved && saved.gains && saved.gains.length === 10) {
+      eqGains = saved.gains.map(g => Math.max(-12, Math.min(12, g)));
+      currentEqPreset = saved.preset || 'Flat';
+    }
+  } catch(e) { /* use defaults */ }
+}
+
+function applyEqPreset(name) {
+  const preset = EQ_PRESETS[name];
+  if (!preset) return;
+  currentEqPreset = name;
+  for (let i = 0; i < 10; i++) {
+    eqGains[i] = preset[i];
+    if (eqFilters[i]) eqFilters[i].gain.value = preset[i];
+  }
+  saveEqState();
+  renderEqBands();
+  renderEqPresets();
+}
+
+function resetEq() {
+  applyEqPreset('Flat');
+}
+
+function updateEqSliderVisuals(bandIndex) {
+  const db = eqGains[bandIndex];
+  const dbEl = document.getElementById(`eqDb${bandIndex}`);
+  if (dbEl) {
+    const sign = db > 0 ? '+' : '';
+    dbEl.textContent = `${sign}${db.toFixed(1)}`;
+    dbEl.className = 'eq-band-db ' + (db > 0.1 ? 'positive' : db < -0.1 ? 'negative' : 'zero');
+  }
+  const slider = document.getElementById(`eqSlider${bandIndex}`);
+  if (slider) slider.value = db;
+  // Check if gains still match any preset
+  let matchedPreset = null;
+  for (const [name, vals] of Object.entries(EQ_PRESETS)) {
+    if (vals.every((v, i) => Math.abs(v - eqGains[i]) < 0.1)) { matchedPreset = name; break; }
+  }
+  if (matchedPreset !== currentEqPreset) {
+    currentEqPreset = matchedPreset || 'Custom';
+    renderEqPresets();
+  }
+}
+
+function renderEqPresets() {
+  const container = document.getElementById('eqPresets');
+  if (!container) return;
+  container.innerHTML = Object.keys(EQ_PRESETS).map(name =>
+    `<button class="eq-preset-btn${name === currentEqPreset ? ' active' : ''}" onclick="applyEqPreset('${name}')">${name}</button>`
+  ).join('');
+}
+
+function renderEqBands() {
+  const container = document.getElementById('eqBands');
+  if (!container) return;
+  container.innerHTML = EQ_FREQUENCIES.map((freq, i) => {
+    const db = eqGains[i];
+    const sign = db > 0 ? '+' : '';
+    const dbClass = db > 0.1 ? 'positive' : db < -0.1 ? 'negative' : 'zero';
+    return `<div class="eq-band">
+      <div class="eq-band-db ${dbClass}" id="eqDb${i}">${sign}${db.toFixed(1)}</div>
+      <div class="eq-slider-wrap">
+        <input type="range" id="eqSlider${i}" min="-12" max="12" step="0.1" value="${db}"
+          oninput="setEqBand(${i}, parseFloat(this.value))">
+      </div>
+      <div class="eq-band-freq">${EQ_FREQ_LABELS[i]}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleEqPanel() {
+  const panel = document.getElementById('eqPanel');
+  const btn = document.getElementById('eqToggleBtn');
+  const isOpen = panel.classList.toggle('open');
+  btn.classList.toggle('active', isOpen);
+  if (isOpen) {
+    renderEqPresets();
+    renderEqBands();
+  }
+}
+
+// Load saved EQ state before audio init
+loadEqState();
 
 function initAudioContext() {
   if (audioCtx) {
@@ -3698,6 +3956,13 @@ document.querySelector('[data-action="queue"]').addEventListener('click', () => 
 });
 document.getElementById('queueClose').addEventListener('click', () => {
   document.getElementById('queuePanel').classList.remove('open');
+});
+
+// ============ EQUALIZER PANEL ============
+document.getElementById('eqToggleBtn').addEventListener('click', toggleEqPanel);
+document.getElementById('eqClose').addEventListener('click', () => {
+  document.getElementById('eqPanel').classList.remove('open');
+  document.getElementById('eqToggleBtn').classList.remove('active');
 });
 
 // ============ SETTINGS PANEL ============
