@@ -241,6 +241,7 @@ body.vertical-mode .track-list-header { grid-template-columns:30px 2fr 1fr 60px;
 .album-art-icon svg { width:40px; height:40px; stroke:var(--purple-dim); fill:none; stroke-width:1; }
 .album-play-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.25s; }
 .album-card:hover .album-play-overlay { opacity:1; }
+.genre-card:hover { transform:translateY(-3px); border-color:var(--purple-bright) !important; box-shadow:0 0 20px rgba(157,78,221,0.2), 0 0 40px rgba(157,78,221,0.08); }
 .album-play-btn { width:48px; height:48px; border-radius:50%; background:var(--purple-bright); display:flex; align-items:center; justify-content:center; box-shadow:var(--glow-intense); transform:scale(0.8); transition:transform 0.25s var(--ease-bounce); }
 .album-card:hover .album-play-btn { transform:scale(1); }
 .album-play-btn svg { width:20px; height:20px; fill:var(--purple-white); stroke:none; margin-left:2px; }
@@ -1339,6 +1340,10 @@ body::after {
         <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <span class="nav-item-label">Artists</span>
       </div>
+      <div class="nav-item" data-view="genres">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h6" stroke-linecap="round"/></svg>
+        <span class="nav-item-label">Genres</span>
+      </div>
       <div class="nav-item" data-action="search">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <span class="nav-item-label">Search</span>
@@ -1773,7 +1778,10 @@ const SUBSONIC = {
     return `${this.baseUrl}/rest/stream?id=${id}&${this.auth()}`;
   },
   coverUrl(id, size = 300) {
-    return `${this.baseUrl}/rest/getCoverArt?id=${id}&size=${size}&${this.auth()}`;
+    // Stable auth for cover art so browser can cache images
+    const salt = 'aether_cover';
+    const token = md5(this.password + salt);
+    return `${this.baseUrl}/rest/getCoverArt?id=${id}&size=${size}&u=${this.user}&t=${token}&s=${salt}&v=1.16.1&c=Aether&f=json`;
   }
 };
 
@@ -1849,9 +1857,18 @@ const ENERGY_HISTORY_SIZE = 30;
 
 const bands = { sub: 0, bass: 0, mid: 0, high: 0, energy: 0 };
 
+// 10-Band Parametric EQ
+const EQ_FREQUENCIES = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+let eqFilters = [];
+let eqGains = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // dB, range -12 to +12
+
+function setEqBand(bandIndex, gainDb) {
+  eqGains[bandIndex] = Math.max(-12, Math.min(12, gainDb));
+  if (eqFilters[bandIndex]) eqFilters[bandIndex].gain.value = eqGains[bandIndex];
+}
+
 function initAudioContext() {
   if (audioCtx) {
-    // Always ensure context is running
     if (audioCtx.state === 'suspended') audioCtx.resume();
     return;
   }
@@ -1860,19 +1877,27 @@ function initAudioContext() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 2048;
     analyser.smoothingTimeConstant = 0.82;
-    audioSource = audioCtx.createMediaElementSource(audio);
-    audioSource.connect(analyser);
+    if (!audioSource) audioSource = audioCtx.createMediaElementSource(audio);
+    // Build 10-band EQ chain: source → eq[0-9] → analyser → destination
+    eqFilters = EQ_FREQUENCIES.map((freq, i) => {
+      const f = audioCtx.createBiquadFilter();
+      f.type = 'peaking';
+      f.frequency.value = freq;
+      f.Q.value = 1.4;
+      f.gain.value = eqGains[i];
+      return f;
+    });
+    audioSource.connect(eqFilters[0]);
+    for (let i = 0; i < eqFilters.length - 1; i++) eqFilters[i].connect(eqFilters[i + 1]);
+    eqFilters[eqFilters.length - 1].connect(analyser);
     analyser.connect(audioCtx.destination);
     freqData = new Uint8Array(analyser.frequencyBinCount);
-    // Force resume on any user interaction
     audioCtx.resume();
-    console.log('Web Audio API initialized, state:', audioCtx.state);
+    console.log('Web Audio API initialized with 10-band EQ, state:', audioCtx.state);
   } catch(e) {
     console.error('Web Audio init failed:', e);
-    // Fallback: ensure audio still plays without Web Audio pipeline
     audioCtx = null;
     analyser = null;
-    audioSource = null;
   }
 }
 
@@ -1958,22 +1983,26 @@ function renderTrackList(tracks, containerId, filter = '') {
     const f = filter.toLowerCase();
     filtered = tracks.filter(t => ((t.title||'')+(t.artist||'')+(t.album||'')).toLowerCase().includes(f));
   }
+  // Cap rendered rows for performance; full list still available for playback
+  const MAX_RENDER = 300;
+  const allFiltered = filtered;
+  if (filtered.length > MAX_RENDER) filtered = filtered.slice(0, MAX_RENDER);
   container.innerHTML = filtered.map((t, i) => {
     const isCurrentPlaying = currentQueue[currentQueueIndex] && currentQueue[currentQueueIndex].id === t.id;
     const coverSrc = t.coverArt ? SUBSONIC.coverUrl(t.coverArt, 80) : '';
     const suffix = (t.suffix || '').toUpperCase();
     const isLossless = ['FLAC','ALAC','WAV','AIFF','APE','WV'].includes(suffix);
-    return `<div class="track-row track-enter ${isCurrentPlaying ? 'playing' : ''}" data-track-id="${t.id}" style="animation-delay:${i * 30}ms" oncontextmenu="showTrackContext(event,'${t.id}','${(t.title||'').replace(/'/g,"\\'")}')">
+    return `<div class="track-row track-enter ${isCurrentPlaying ? 'playing' : ''}" data-track-id="${t.id}" style="animation-delay:${i * 30}ms" oncontextmenu="showTrackContext(event,'${t.id}','${escHtml((t.title||'').replace(/'/g,"\\'"))}')">
       <div class="track-num">${i + 1}</div>
       <div class="eq-bars"><div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div></div>
       <div class="track-title-cell">
-        <div class="track-art-small">${coverSrc ? `<img src="${coverSrc}" alt="" loading="lazy">` : ''}</div>
+        <div class="track-art-small">${coverSrc ? `<img src="${coverSrc}" alt="" loading="lazy" onerror="this.style.display='none'">` : ''}</div>
         <div class="track-title-text">
-          <div class="track-title">${t.title || 'Unknown'}</div>
-          <div class="track-artist-sub">${t.artist || 'Unknown'}</div>
+          <div class="track-title">${escHtml(t.title) || 'Unknown'}</div>
+          <div class="track-artist-sub">${escHtml(t.artist) || 'Unknown'}</div>
         </div>
       </div>
-      <div class="track-album">${t.album || ''}</div>
+      <div class="track-album">${escHtml(t.album) || ''}</div>
       <div class="track-format ${isLossless ? 'lossless' : ''}">${suffix || '--'}</div>
       <div class="track-duration">${fmtDur(t.duration)}</div>
     </div>`;
@@ -1981,11 +2010,19 @@ function renderTrackList(tracks, containerId, filter = '') {
 
   container.querySelectorAll('.track-row').forEach((row, i) => {
     row.addEventListener('dblclick', () => {
-      currentQueue = [...filtered];
+      currentQueue = [...allFiltered];
       currentQueueIndex = i;
       playCurrentTrack();
     });
   });
+
+  // Show count if truncated
+  if (allFiltered.length > MAX_RENDER) {
+    const note = document.createElement('div');
+    note.style.cssText = 'text-align:center;padding:12px;font-family:var(--font-mono);font-size:0.65rem;color:var(--purple-muted);';
+    note.textContent = `Showing ${MAX_RENDER} of ${allFiltered.length} tracks`;
+    container.appendChild(note);
+  }
 }
 
 // ============ PLAY CURRENT TRACK ============
@@ -2062,8 +2099,8 @@ function renderQueueItems() {
     <div class="queue-item" data-track-id="${t.id}" data-queue-offset="${i + 1}" style="cursor:pointer">
       <div class="queue-item-art">${t.coverArt ? `<img src="${SUBSONIC.coverUrl(t.coverArt, 80)}" alt="" loading="lazy">` : ''}</div>
       <div class="queue-item-info">
-        <div class="queue-item-title">${t.title || 'Unknown'}</div>
-        <div class="queue-item-artist">${t.artist || 'Unknown'}</div>
+        <div class="queue-item-title">${escHtml(t.title) || 'Unknown'}</div>
+        <div class="queue-item-artist">${escHtml(t.artist) || 'Unknown'}</div>
       </div>
       <div class="queue-item-dur">${fmtDur(t.duration)}</div>
     </div>
@@ -2270,8 +2307,8 @@ async function openAlbumDetail(albumId) {
 
     renderTrackList(songs, 'trackList');
 
-    // Also allow playing whole album from play overlay click
-    currentQueue = [...songs];
+    // Only set queue if nothing is currently playing
+    if (!isPlaying) currentQueue = [...songs];
   } catch(e) {
     dc.innerHTML = '<div style="padding:28px;color:var(--purple-muted);">Failed to load album.</div>';
     dc.classList.remove('content-fade-out');
@@ -2453,7 +2490,7 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
         artists.forEach(a => {
           html += `<div class="search-result-item" onclick="loadArtistAlbums('${a.id}','${(a.name||'').replace(/'/g,"\\'")}');document.getElementById('searchOverlay').classList.remove('open')">
             <div class="search-result-art">${a.coverArt ? `<img src="${SUBSONIC.coverUrl(a.coverArt, 80)}">` : ''}</div>
-            <div class="search-result-info"><div class="search-result-title">${a.name}</div><div class="search-result-sub">${a.albumCount || 0} albums</div></div>
+            <div class="search-result-info"><div class="search-result-title">${escHtml(a.name)}</div><div class="search-result-sub">${a.albumCount || 0} albums</div></div>
           </div>`;
         });
         html += '</div>';
@@ -2463,7 +2500,7 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
         albums.forEach(a => {
           html += `<div class="search-result-item" onclick="openAlbumDetail('${a.id}');document.getElementById('searchOverlay').classList.remove('open')">
             <div class="search-result-art">${a.coverArt ? `<img src="${SUBSONIC.coverUrl(a.coverArt, 80)}">` : ''}</div>
-            <div class="search-result-info"><div class="search-result-title">${a.name || a.title}</div><div class="search-result-sub">${a.artist || ''}</div></div>
+            <div class="search-result-info"><div class="search-result-title">${escHtml(a.name || a.title)}</div><div class="search-result-sub">${escHtml(a.artist) || ''}</div></div>
           </div>`;
         });
         html += '</div>';
@@ -2473,7 +2510,7 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
         songs.forEach(s => {
           html += `<div class="search-result-item" onclick="searchPlaySong('${s.id}');document.getElementById('searchOverlay').classList.remove('open')">
             <div class="search-result-art">${s.coverArt ? `<img src="${SUBSONIC.coverUrl(s.coverArt, 80)}">` : ''}</div>
-            <div class="search-result-info"><div class="search-result-title">${s.title}</div><div class="search-result-sub">${s.artist || ''} &mdash; ${s.album || ''}</div></div>
+            <div class="search-result-info"><div class="search-result-title">${escHtml(s.title)}</div><div class="search-result-sub">${escHtml(s.artist) || ''} &mdash; ${escHtml(s.album) || ''}</div></div>
           </div>`;
         });
         html += '</div>';
@@ -2551,7 +2588,7 @@ async function loadLibraryView() {
   if (randomSongsResp?.randomSongs?.song) {
     const songs = randomSongsResp.randomSongs.song;
     renderTrackList(songs, 'trackList');
-    currentQueue = [...songs];
+    if (!isPlaying) currentQueue = [...songs];
   }
 }
 
@@ -2641,6 +2678,133 @@ async function loadArtistAlbums(artistId, artistName) {
 }
 
 // ============ SIDEBAR NAV ============
+// ============ GENRES VIEW ============
+async function loadGenresView() {
+  pushNavState(() => loadGenresView(), 'Genres');
+  const dc = document.getElementById('dynamicContent');
+  dc.classList.add('content-fade-out');
+  await new Promise(r => setTimeout(r, 150));
+
+  document.getElementById('contentTitle').textContent = 'Genres';
+
+  try {
+    const resp = await SUBSONIC.get('getGenres');
+    // Consolidate similar genres (e.g. "Hip-Hop" + "Hip" → "Hip-Hop")
+    const GENRE_ALIASES = { 'hip': 'Hip-Hop', 'hiphop': 'Hip-Hop', 'hip hop': 'Hip-Hop', 'rap': 'Hip-Hop', 'rnb': 'R&B', 'r&b': 'R&B', 'rhythm and blues': 'R&B', 'electronica': 'Electronic', 'edm': 'Electronic', 'alt-rock': 'Alternative Rock', 'alt rock': 'Alternative Rock' };
+    const rawGenres = (resp.genres?.genre || []).filter(g => g.songCount > 0);
+    const merged = {};
+    rawGenres.forEach(g => {
+      const key = GENRE_ALIASES[(g.value || '').toLowerCase()] || g.value;
+      if (!merged[key]) merged[key] = { value: key, songCount: 0, albumCount: 0, originals: [] };
+      merged[key].songCount += g.songCount || 0;
+      merged[key].albumCount += g.albumCount || 0;
+      merged[key].originals.push(g.value);
+    });
+    const genres = Object.values(merged).sort((a, b) => b.songCount - a.songCount);
+
+    let html = '<div style="display:flex;flex-wrap:wrap;gap:10px;padding:20px 0;">';
+    genres.forEach((g, i) => {
+      const hue = 260 + (i * 17) % 60;
+      const sat = 50 + (i * 7) % 30;
+      html += `<div class="genre-card" onclick="loadGenreDetail('${(g.value || '').replace(/'/g, "\\'")}')" style="
+        background: linear-gradient(135deg, hsla(${hue},${sat}%,15%,0.6), hsla(${hue},${sat}%,8%,0.8));
+        border: 1px solid hsla(${hue},${sat}%,40%,0.25);
+        border-radius: 12px; padding: 20px 24px; cursor: pointer;
+        transition: all 0.25s; position: relative; overflow: hidden;
+        min-width: 140px; flex: 1 1 160px; max-width: 240px;
+      ">
+        <div style="font-family:var(--font-display);font-size:0.9rem;letter-spacing:0.06em;color:var(--purple-white);margin-bottom:6px;">${escHtml(g.value)}</div>
+        <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--purple-bright);opacity:0.7;">${g.albumCount || 0} albums &middot; ${g.songCount || 0} tracks</div>
+        <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:hsla(${hue},${sat}%,50%,0.04);"></div>
+      </div>`;
+    });
+    html += '</div>';
+
+    if (genres.length === 0) {
+      html = '<div style="text-align:center;padding:60px 20px;color:var(--purple-muted);font-family:var(--font-body);">No genres found in your library</div>';
+    }
+
+    dc.innerHTML = html;
+  } catch(e) {
+    console.error('Genres load error', e);
+    dc.innerHTML = '<div style="text-align:center;padding:60px;color:var(--purple-bright);">Failed to load genres</div>';
+  }
+
+  dc.classList.remove('content-fade-out');
+  dc.classList.add('content-fade-in');
+  setTimeout(() => dc.classList.remove('content-fade-in'), 300);
+}
+
+async function loadGenreDetail(genreName) {
+  pushNavState(() => loadGenreDetail(genreName), genreName);
+  const dc = document.getElementById('dynamicContent');
+  dc.classList.add('content-fade-out');
+  await new Promise(r => setTimeout(r, 150));
+
+  document.getElementById('contentTitle').textContent = genreName;
+
+  // For merged genres, query each original genre name
+  const GENRE_ALIASES = { 'hip': 'Hip-Hop', 'hiphop': 'Hip-Hop', 'hip hop': 'Hip-Hop', 'rap': 'Hip-Hop', 'rnb': 'R&B', 'r&b': 'R&B', 'rhythm and blues': 'R&B', 'electronica': 'Electronic', 'edm': 'Electronic', 'alt-rock': 'Alternative Rock', 'alt rock': 'Alternative Rock' };
+  // Find all original genre names that map to this merged name
+  const genreNames = [genreName];
+  Object.entries(GENRE_ALIASES).forEach(([k, v]) => { if (v === genreName && !genreNames.includes(k)) genreNames.push(k); });
+
+  try {
+    // Load albums and songs for all genre variants
+    const albumPromises = genreNames.map(g => SUBSONIC.get('getAlbumList2', { type: 'byGenre', genre: g, size: 500 }).catch(() => null));
+    const songPromises = genreNames.map(g => SUBSONIC.get('getSongsByGenre', { genre: g, count: 500 }).catch(() => null));
+    const albumResults = await Promise.all(albumPromises);
+    const songResults = await Promise.all(songPromises);
+
+    // Dedupe by ID
+    const albumMap = {};
+    albumResults.forEach(r => (r?.albumList2?.album || []).forEach(a => { albumMap[a.id] = a; }));
+    const albums = Object.values(albumMap);
+
+    const songMap = {};
+    songResults.forEach(r => (r?.songsByGenre?.song || []).forEach(s => { songMap[s.id] = s; }));
+    const songs = Object.values(songMap);
+
+    let html = '';
+
+    // Album cards section
+    if (albums.length > 0) {
+      html += '<div class="section-header"><div class="section-title">Albums</div><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--purple-muted);">' + albums.length + ' albums</div></div>';
+      html += '<div class="album-grid" id="genreAlbumsGrid"></div>';
+    }
+
+    // Songs section
+    if (songs.length > 0) {
+      html += '<div class="section-header" style="margin-top:30px;"><div class="section-title">All Tracks</div><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--purple-muted);">' + songs.length + ' tracks</div></div>';
+      html += '<div class="track-list-header"><span>#</span><span>TITLE</span><span>ALBUM</span><span>FORMAT</span><span style="text-align:right">TIME</span></div>';
+      html += '<div id="genreTrackList" class="bottom-pad"></div>';
+    }
+
+    if (albums.length === 0 && songs.length === 0) {
+      html = '<div style="text-align:center;padding:60px;color:var(--purple-muted);font-family:var(--font-body);">No music found for this genre</div>';
+    }
+
+    dc.innerHTML = html;
+
+    // Render album cards
+    if (albums.length > 0) {
+      renderAlbumCards(albums, document.getElementById('genreAlbumsGrid'), true);
+    }
+
+    // Render track list
+    if (songs.length > 0) {
+      renderTrackList(songs, 'genreTrackList');
+    }
+  } catch(e) {
+    console.error('Genre detail error', e);
+    dc.innerHTML = '<div style="text-align:center;padding:60px;color:var(--purple-bright);">Failed to load genre</div>';
+  }
+
+  dc.classList.remove('content-fade-out');
+  dc.classList.add('content-fade-in');
+  setTimeout(() => dc.classList.remove('content-fade-in'), 300);
+}
+
 document.querySelectorAll('.nav-item[data-view]').forEach(item => {
   item.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -2651,6 +2815,7 @@ document.querySelectorAll('.nav-item[data-view]').forEach(item => {
     if (view === 'library') loadLibraryView();
     else if (view === 'albums') loadAlbumsView();
     else if (view === 'artists') loadArtistsView();
+    else if (view === 'genres') loadGenresView();
   });
 });
 
@@ -2888,14 +3053,17 @@ let sheepFolder = '';
 // Load Electric Sheep videos from a folder
 async function loadSheepVideos(folderPath) {
   sheepFolder = folderPath;
-  try {
-    // Use Electron's fs via preload or direct fetch of directory
-    const resp = await fetch('file:///' + folderPath.replace(/\\/g, '/'));
-    // If we can't list files via fetch, fall back to known patterns
-    sheepVideos = [];
-    showToast('Electric Sheep: scanning folder...');
-  } catch(e) {
-    console.log('Electric Sheep folder scan needs manual list');
+  if (window.electronAPI && window.electronAPI.scanSheepFolder) {
+    try {
+      const files = window.electronAPI.scanSheepFolder(folderPath);
+      sheepVideos = (files || []).map(f => 'file:///' + f);
+      showToast(`Electric Sheep: loaded ${sheepVideos.length} videos`);
+    } catch(e) {
+      console.error('Electric Sheep scan failed:', e);
+      showToast('Electric Sheep: folder scan failed');
+    }
+  } else {
+    showToast('Electric Sheep: use Settings to set video folder path');
   }
 }
 
@@ -3655,8 +3823,8 @@ function drawTronGrid(ctx, w, h, time) {
   const planetX = vanishX;
   const planetBaseY = horizon - 20;
   const planetY = planetBaseY - 10 - Math.sin(time * 0.0003) * 8 - bands.bass * 12;
-  const planetBaseR = Math.min(w, h) * 0.065;
-  const planetR = planetBaseR + bands.bass * 15 + bi * 8;
+  const planetBaseR = Math.min(w, h) * 0.11;
+  const planetR = planetBaseR + bands.bass * 12 + bi * 6;
   // Planet atmosphere glow
   const atmosR = planetR * 3.5;
   const atmosGrad = ctx.createRadialGradient(planetX, planetY, planetR * 0.8, planetX, planetY, atmosR);
@@ -3701,51 +3869,38 @@ function drawTronGrid(ctx, w, h, time) {
   ctx.fillStyle = sunGrad;
   ctx.fillRect(vanishX - sunRadius, horizon - sunRadius, sunRadius * 2, sunRadius * 2);
 
-  // === HORIZONTAL GRID LINES - enhanced bass reactivity ===
+  // === HORIZONTAL GRID LINES - thin, bright, clean ===
   for (let i = 0; i < gridLines; i++) {
     const t = (i / gridLines + speed) % 1;
-    const bassJump = bands.bass > 0.3 ? Math.sin(t * Math.PI * 4 + time * 0.005) * bands.bass * 8 : 0;
-    const y = horizon + (h - horizon) * Math.pow(t, 1.4) + bassShakeY + bassJump;
+    const y = horizon + (h - horizon) * Math.pow(t, 1.4) + bassShakeY;
     const proximity = Math.pow(t, 0.6);
-    const alpha = proximity * (0.35 + bands.bass * 1.2 + bi * 0.5);
-    const lineW = 0.5 + proximity * (1.5 + bassBoost * 5 + bi * 2);
-
-    ctx.beginPath(); ctx.moveTo(0 + bassShakeX, y); ctx.lineTo(w + bassShakeX, y);
-    const gr = Math.round(50 + bi * 150 + bands.bass * 80);
-    const gg = Math.round(180 + bi * 75);
-    const gb = Math.round(245);
-    ctx.strokeStyle = `rgba(${gr}, ${gg}, ${gb}, ${Math.min(0.5, alpha * 0.3)})`;
-    ctx.lineWidth = lineW * 7 + bands.bass * 4;
-    ctx.stroke();
+    const alpha = proximity * (0.4 + bands.bass * 0.8 + bi * 0.4);
+    const lineW = 0.4 + proximity * (0.8 + bassBoost * 1.5 + bi * 0.8);
 
     ctx.beginPath(); ctx.moveTo(0 + bassShakeX, y); ctx.lineTo(w + bassShakeX, y);
     const cr = Math.round(140 + bi * 60 + bands.bass * 40);
     const cg = Math.round(60 + bi * 180 + bands.bass * 60);
     const cb = Math.round(220 + bi * 35);
-    ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${Math.min(1, alpha * 1.4)})`;
-    ctx.lineWidth = lineW + bands.bass * 1.5;
+    ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, ${Math.min(1, alpha)})`;
+    ctx.lineWidth = lineW;
     ctx.stroke();
   }
 
-  // === VERTICAL CONVERGING LINES - enhanced bass reactivity ===
+  // === VERTICAL CONVERGING LINES - thin only, no thick glow ===
   const vLines = 20;
   for (let i = -vLines; i <= vLines; i++) {
     const spread = 2.2 + bassBoost * 0.8 + bi * 0.3;
     const baseX = vanishX + i * (w / vLines) * spread + bassShakeX;
     const dist = Math.abs(i) / vLines;
-    const alpha = Math.max(0, 0.25 + bands.energy * 0.45 + bands.bass * 0.3 - dist * 0.12);
+    const alpha = Math.max(0, 0.2 + bands.energy * 0.35 + bands.bass * 0.2 - dist * 0.12);
     if (alpha <= 0) continue;
-    const lineW = 0.5 + (1 - dist) * (1 + bassBoost * 3 + bi * 1.5);
-
-    ctx.beginPath(); ctx.moveTo(vanishX + bassShakeX, horizon + bassShakeY); ctx.lineTo(baseX, h);
-    ctx.strokeStyle = `rgba(157, 78, 221, ${alpha * 0.25})`;
-    ctx.lineWidth = lineW * 6; ctx.stroke();
+    const lineW = 0.3 + (1 - dist) * (0.6 + bassBoost * 1 + bi * 0.5);
 
     ctx.beginPath(); ctx.moveTo(vanishX + bassShakeX, horizon + bassShakeY); ctx.lineTo(baseX, h);
     const vr = Math.round(157 + bi * 40 + bands.bass * 30);
     const vg = Math.round(78 + bi * 140 + bands.bass * 50);
     const vb = Math.round(221 + bi * 34);
-    ctx.strokeStyle = `rgba(${vr}, ${vg}, ${vb}, ${Math.min(1, alpha)})`;
+    ctx.strokeStyle = `rgba(${vr}, ${vg}, ${vb}, ${Math.min(0.7, alpha)})`;
     ctx.lineWidth = lineW; ctx.stroke();
   }
 
@@ -4106,8 +4261,8 @@ function drawWaveformBars(ctx, w, h, time) {
 
 // ============ PLASMA WARP (Kaleidoscopic plasma) ============
 function drawPlasmaWarp(ctx, w, h, time) {
-  // Render at half resolution for performance
-  const scale = 2;
+  // Render at lower resolution, upscale with smoothing for butter
+  const scale = 3;
   const pw = Math.floor(w / scale);
   const ph = Math.floor(h / scale);
 
@@ -4122,10 +4277,10 @@ function drawPlasmaWarp(ctx, w, h, time) {
   const imageData = pCtx.createImageData(pw, ph);
   const data = imageData.data;
 
-  const t = time * 0.0008 * (1 + bands.energy * 3);
-  const bassFreq = 1 + bands.bass * 4;
-  const midPhase = bands.mid * Math.PI * 4;
-  const highFreq = 1 + bands.high * 3;
+  const t = time * 0.0005 * (1 + bands.energy * 2);
+  const bassFreq = 1 + bands.bass * 3;
+  const midPhase = bands.mid * Math.PI * 3;
+  const highFreq = 1 + bands.high * 2;
   const bi = beatIntensity;
 
   // Beat ripple
@@ -4169,35 +4324,35 @@ function drawPlasmaWarp(ctx, w, h, time) {
       v = v / 5; // normalize to -1..1 range roughly
       v = (v + 1) / 2; // 0..1
 
-      // Color mapping: much darker palette - deep void purple -> muted purple -> dim cyan -> soft purple
+      // Color mapping: rich purple-cyan palette, brighter than before
       let r, g, b;
       if (v < 0.25) {
         const f = v * 4;
-        r = Math.round(8 + 40 * f);
-        g = Math.round(3 + 20 * f);
-        b = Math.round(15 + 55 * f);
+        r = Math.round(15 + 60 * f);
+        g = Math.round(5 + 30 * f);
+        b = Math.round(25 + 75 * f);
       } else if (v < 0.5) {
         const f = (v - 0.25) * 4;
-        r = Math.round(48 + 30 * f);
-        g = Math.round(23 + 45 * f);
-        b = Math.round(70 + 40 * f);
+        r = Math.round(75 + 40 * f);
+        g = Math.round(35 + 55 * f);
+        b = Math.round(100 + 50 * f);
       } else if (v < 0.75) {
         const f = (v - 0.5) * 4;
-        r = Math.round(78 - 60 * f);
-        g = Math.round(68 + 50 * f);
-        b = Math.round(110 + 25 * f);
+        r = Math.round(115 - 70 * f);
+        g = Math.round(90 + 60 * f);
+        b = Math.round(150 + 25 * f);
       } else {
         const f = (v - 0.75) * 4;
-        r = Math.round(18 + 50 * f);
-        g = Math.round(118 - 60 * f);
-        b = Math.round(135 - 30 * f);
+        r = Math.round(45 + 70 * f);
+        g = Math.round(150 - 60 * f);
+        b = Math.round(175 - 30 * f);
       }
 
-      // Much more restrained brightness boost - no flashbang
-      const boost = 0.55 + bands.energy * 0.15 + bi * 0.08;
-      r = Math.min(180, Math.round(r * boost));
-      g = Math.min(160, Math.round(g * boost));
-      b = Math.min(190, Math.round(b * boost));
+      // Brighter overall with beat reactivity
+      const boost = 0.7 + bands.energy * 0.2 + bi * 0.12;
+      r = Math.min(210, Math.round(r * boost));
+      g = Math.min(200, Math.round(g * boost));
+      b = Math.min(220, Math.round(b * boost));
 
       const idx = (y * pw + x) * 4;
       data[idx] = r;
@@ -4209,15 +4364,16 @@ function drawPlasmaWarp(ctx, w, h, time) {
 
   pCtx.putImageData(imageData, 0, 0);
 
-  // Scale up to full canvas
+  // Scale up to full canvas — bilinear smoothing makes it buttery
   ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(drawPlasmaWarp._canvas, 0, 0, w, h);
 
-  // Subtle dark vignette overlay to further control brightness
-  const vigR = Math.max(w, h) * 0.6;
-  const vigGrad = ctx.createRadialGradient(w/2, h/2, vigR * 0.3, w/2, h/2, vigR);
+  // Light vignette for depth, not darkness
+  const vigR = Math.max(w, h) * 0.65;
+  const vigGrad = ctx.createRadialGradient(w/2, h/2, vigR * 0.4, w/2, h/2, vigR);
   vigGrad.addColorStop(0, 'transparent');
-  vigGrad.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+  vigGrad.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
   ctx.fillStyle = vigGrad;
   ctx.fillRect(0, 0, w, h);
 
@@ -5256,245 +5412,400 @@ function drawCommandDeck(ctx, w, h, time) {
   ctx.clearRect(0, 0, w, h);
   const cx = w / 2, cy = h / 2;
   const bi = beatIntensity;
-  cmdDeckSmoothedBeat += (bi - cmdDeckSmoothedBeat) * 0.15;
+  cmdDeckSmoothedBeat += (bi - cmdDeckSmoothedBeat) * 0.12;
   const sb = cmdDeckSmoothedBeat;
   const minDim = Math.min(w, h);
 
-  // === BACKGROUND: subtle scan lines ===
-  for (let y = 0; y < h; y += 3) {
-    ctx.fillStyle = `rgba(0, 180, 216, ${0.01 + Math.sin(y * 0.1 + time * 0.002) * 0.005})`;
+  // === ATMOSPHERIC AURA — deep ambient glow behind everything ===
+  // Center aura that breathes with bass
+  const auraR = minDim * 0.55 + sb * 40;
+  const auraGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, auraR);
+  auraGrad.addColorStop(0, `rgba(0, 220, 245, ${0.04 + sb * 0.06})`);
+  auraGrad.addColorStop(0.3, `rgba(157, 78, 221, ${0.025 + sb * 0.03})`);
+  auraGrad.addColorStop(0.6, `rgba(0, 120, 180, ${0.01 + sb * 0.015})`);
+  auraGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = auraGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Drifting ambient orbs — slow-moving colored fog
+  for (let i = 0; i < 4; i++) {
+    const ox = cx + Math.sin(time * 0.0003 + i * 1.8) * w * 0.3;
+    const oy = cy + Math.cos(time * 0.0004 + i * 2.1) * h * 0.25;
+    const oR = minDim * (0.15 + Math.sin(time * 0.0005 + i) * 0.05) + sb * 20;
+    const orbGrad = ctx.createRadialGradient(ox, oy, 0, ox, oy, oR);
+    const colors = [[0,220,245],[157,78,221],[183,110,255],[0,180,216]];
+    const c = colors[i];
+    orbGrad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]}, ${0.02 + sb * 0.02})`);
+    orbGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = orbGrad;
+    ctx.fillRect(ox - oR, oy - oR, oR * 2, oR * 2);
+  }
+
+  // === BACKGROUND: ultra-subtle scanlines ===
+  for (let y = 0; y < h; y += 4) {
+    ctx.fillStyle = `rgba(0, 180, 216, ${0.006 + Math.sin(y * 0.08 + time * 0.001) * 0.003})`;
     ctx.fillRect(0, y, w, 1);
   }
 
-  // === MAIN RADAR HUD (center) ===
-  const radarR = minDim * 0.28;
-  // Radar background
-  const radarBg = ctx.createRadialGradient(cx, cy, 0, cx, cy, radarR);
-  radarBg.addColorStop(0, `rgba(0, 40, 50, 0.3)`);
-  radarBg.addColorStop(1, `rgba(0, 15, 25, 0.5)`);
-  ctx.fillStyle = radarBg;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radarR, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Concentric rings
-  for (let r = 1; r <= 4; r++) {
-    const ringR = (r / 4) * radarR;
-    ctx.beginPath();
-    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(0, 220, 245, ${0.1 + sb * 0.05})`;
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
+  // === SHIMMER PARTICLES — floating motes of light ===
+  if (!drawCommandDeck._shimmers) {
+    drawCommandDeck._shimmers = [];
+    for (let i = 0; i < 60; i++) {
+      drawCommandDeck._shimmers.push({
+        x: Math.random() * 1, y: Math.random() * 1,
+        vx: (Math.random() - 0.5) * 0.0003,
+        vy: (Math.random() - 0.5) * 0.0002 - 0.0001,
+        size: 0.5 + Math.random() * 1.5,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.002 + Math.random() * 0.004,
+        color: Math.floor(Math.random() * 3) // 0=cyan, 1=purple, 2=pink
+      });
+    }
   }
-  // Cross hairs
+  drawCommandDeck._shimmers.forEach(p => {
+    p.x += p.vx + Math.sin(time * 0.0002 + p.phase) * 0.0001;
+    p.y += p.vy;
+    if (p.y < -0.05) { p.y = 1.05; p.x = Math.random(); }
+    if (p.x < -0.05) p.x = 1.05;
+    if (p.x > 1.05) p.x = -0.05;
+    const shimmer = (Math.sin(time * p.speed + p.phase) * 0.5 + 0.5);
+    const alpha = shimmer * (0.15 + sb * 0.25);
+    const px = p.x * w, py = p.y * h;
+    const sz = p.size * (1 + sb * 0.5) * (0.5 + shimmer * 0.5);
+    const cols = [[0,220,245],[183,110,255],[255,45,123]];
+    const c = cols[p.color];
+    // Core dot
+    ctx.beginPath(); ctx.arc(px, py, sz, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]}, ${alpha})`;
+    ctx.fill();
+    // Glow halo
+    if (shimmer > 0.6) {
+      const haloGrad = ctx.createRadialGradient(px, py, 0, px, py, sz * 6);
+      haloGrad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]}, ${alpha * 0.15})`);
+      haloGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = haloGrad;
+      ctx.beginPath(); ctx.arc(px, py, sz * 6, 0, Math.PI * 2); ctx.fill();
+    }
+  });
+
+  // === MAIN RADAR HUD (center) ===
+  const radarR = minDim * 0.3;
+
+  // Radar outer aura glow — pulsing ring of light
+  const radarAura = ctx.createRadialGradient(cx, cy, radarR * 0.9, cx, cy, radarR * 1.4);
+  radarAura.addColorStop(0, `rgba(0, 220, 245, ${0.03 + sb * 0.05})`);
+  radarAura.addColorStop(0.5, `rgba(0, 180, 216, ${0.01 + sb * 0.02})`);
+  radarAura.addColorStop(1, 'transparent');
+  ctx.fillStyle = radarAura;
+  ctx.beginPath(); ctx.arc(cx, cy, radarR * 1.4, 0, Math.PI * 2); ctx.fill();
+
+  // Radar background — subtle gradient
+  const radarBg = ctx.createRadialGradient(cx, cy, 0, cx, cy, radarR);
+  radarBg.addColorStop(0, 'rgba(0, 30, 40, 0.15)');
+  radarBg.addColorStop(1, 'rgba(0, 10, 18, 0.25)');
+  ctx.fillStyle = radarBg;
+  ctx.beginPath(); ctx.arc(cx, cy, radarR, 0, Math.PI * 2); ctx.fill();
+
+  // Concentric rings — thin, elegant, with subtle glow
+  for (let r = 1; r <= 5; r++) {
+    const ringR = (r / 5) * radarR;
+    // Glow layer
+    ctx.beginPath(); ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0, 220, 245, ${0.02 + sb * 0.015})`;
+    ctx.lineWidth = 3; ctx.stroke();
+    // Crisp line
+    ctx.beginPath(); ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0, 220, 245, ${0.08 + sb * 0.04})`;
+    ctx.lineWidth = 0.4; ctx.stroke();
+  }
+  // Crosshairs — dashed, refined
+  ctx.setLineDash([4, 8]);
+  ctx.strokeStyle = `rgba(0, 220, 245, 0.08)`;
+  ctx.lineWidth = 0.5;
   ctx.beginPath(); ctx.moveTo(cx - radarR, cy); ctx.lineTo(cx + radarR, cy); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(cx, cy - radarR); ctx.lineTo(cx, cy + radarR); ctx.stroke();
+  ctx.setLineDash([]);
 
-  // Radar sweep line
-  const sweepAngle = time * 0.002;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + Math.cos(sweepAngle) * radarR, cy + Math.sin(sweepAngle) * radarR);
-  ctx.strokeStyle = `rgba(0, 220, 245, ${0.6 + sb * 0.4})`;
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  // Sweep trail
-  for (let t = 0; t < 30; t++) {
-    const trailAngle = sweepAngle - t * 0.02;
-    const trailAlpha = (1 - t / 30) * 0.08;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(trailAngle) * radarR, cy + Math.sin(trailAngle) * radarR);
-    ctx.strokeStyle = `rgba(0, 220, 245, ${trailAlpha})`;
-    ctx.lineWidth = 1;
-    ctx.stroke();
+  // Radar sweep — smooth gradient cone with glow
+  const sweepAngle = time * 0.0015;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, radarR, 0, Math.PI * 2); ctx.clip();
+  for (let t = 0; t < 50; t++) {
+    const trailAngle = sweepAngle - t * 0.015;
+    const trailAlpha = (1 - t / 50) * (0.06 + sb * 0.04);
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radarR, trailAngle - 0.015, trailAngle + 0.015);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(0, 220, 245, ${trailAlpha})`;
+    ctx.fill();
   }
+  // Sweep line with glow
+  const sx = cx + Math.cos(sweepAngle) * radarR;
+  const sy = cy + Math.sin(sweepAngle) * radarR;
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(sx, sy);
+  ctx.strokeStyle = `rgba(0, 220, 245, ${0.12 + sb * 0.08})`;
+  ctx.lineWidth = 6; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(sx, sy);
+  ctx.strokeStyle = `rgba(0, 220, 245, ${0.5 + sb * 0.4})`;
+  ctx.lineWidth = 1; ctx.stroke();
+  // Sweep tip glow
+  const tipGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, 12 + sb * 8);
+  tipGrad.addColorStop(0, `rgba(0, 255, 255, ${0.3 + sb * 0.3})`);
+  tipGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = tipGrad;
+  ctx.beginPath(); ctx.arc(sx, sy, 12 + sb * 8, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 
-  // Radar dots that pulse with frequency bands
+  // Radar frequency dots — with glow halos
   if (freqData) {
-    for (let i = 0; i < 32; i++) {
-      const val = freqData[i * 4] / 255;
-      if (val < 0.15) continue;
-      const dotAngle = (i / 32) * Math.PI * 2 + time * 0.0003;
-      const dotDist = val * radarR * 0.85;
+    for (let i = 0; i < 40; i++) {
+      const val = freqData[i * 3] / 255;
+      if (val < 0.12) continue;
+      const dotAngle = (i / 40) * Math.PI * 2 + time * 0.0002;
+      const dotDist = val * radarR * 0.88;
       const dx = cx + Math.cos(dotAngle) * dotDist;
       const dy = cy + Math.sin(dotAngle) * dotDist;
-      const dotSize = 1.5 + val * 3 + sb * 2;
-      ctx.beginPath();
-      ctx.arc(dx, dy, dotSize, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 220, 245, ${0.4 + val * 0.6})`;
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(dx, dy, dotSize * 3, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 220, 245, ${val * 0.1})`;
+      const dotSize = 1 + val * 2;
+      // Glow halo
+      const dotGlow = ctx.createRadialGradient(dx, dy, 0, dx, dy, dotSize * 5);
+      dotGlow.addColorStop(0, `rgba(0, 220, 245, ${val * 0.12})`);
+      dotGlow.addColorStop(1, 'transparent');
+      ctx.fillStyle = dotGlow;
+      ctx.beginPath(); ctx.arc(dx, dy, dotSize * 5, 0, Math.PI * 2); ctx.fill();
+      // Core
+      ctx.beginPath(); ctx.arc(dx, dy, dotSize, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0, 220, 245, ${0.5 + val * 0.5})`;
       ctx.fill();
     }
   }
 
-  // Radar outer ring
-  ctx.beginPath();
-  ctx.arc(cx, cy, radarR, 0, Math.PI * 2);
-  ctx.strokeStyle = `rgba(0, 220, 245, ${0.4 + sb * 0.3})`;
-  ctx.lineWidth = 1.5 + sb * 1;
-  ctx.stroke();
-  // Tick marks
-  for (let i = 0; i < 36; i++) {
-    const a = (i / 36) * Math.PI * 2;
-    const innerR = radarR - (i % 3 === 0 ? 8 : 4);
+  // Outer ring with glow
+  ctx.beginPath(); ctx.arc(cx, cy, radarR, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(0, 220, 245, ${0.08 + sb * 0.06})`;
+  ctx.lineWidth = 4; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, radarR, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(0, 220, 245, ${0.35 + sb * 0.25})`;
+  ctx.lineWidth = 0.8; ctx.stroke();
+  // Tick marks — 60 ticks, hair-thin
+  for (let i = 0; i < 60; i++) {
+    const a = (i / 60) * Math.PI * 2;
+    const major = i % 5 === 0;
+    const innerR = radarR - (major ? 7 : 3);
     ctx.beginPath();
     ctx.moveTo(cx + Math.cos(a) * innerR, cy + Math.sin(a) * innerR);
     ctx.lineTo(cx + Math.cos(a) * radarR, cy + Math.sin(a) * radarR);
-    ctx.strokeStyle = `rgba(0, 220, 245, ${i % 3 === 0 ? 0.4 : 0.15})`;
-    ctx.lineWidth = i % 3 === 0 ? 1 : 0.5;
-    ctx.stroke();
+    ctx.strokeStyle = `rgba(0, 220, 245, ${major ? 0.4 : 0.1})`;
+    ctx.lineWidth = major ? 0.8 : 0.3; ctx.stroke();
   }
 
-  // === LEFT PANEL: Frequency spectrum bars ===
-  const panelX = w * 0.03;
-  const panelY = h * 0.1;
-  const panelW = w * 0.18;
-  const panelH = h * 0.8;
-  // Panel frame
-  ctx.strokeStyle = `rgba(157, 78, 221, ${0.2 + sb * 0.1})`;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(panelX, panelY, panelW, panelH);
-  // Panel label
-  ctx.font = '9px "JetBrains Mono"';
-  ctx.fillStyle = `rgba(157, 78, 221, ${0.5 + sb * 0.3})`;
-  ctx.fillText('FREQ ANALYSIS', panelX + 4, panelY - 4);
+  // === GLOWING TEXT helper ===
+  function glowText(text, x, y, r, g, b, alpha, fontSize, glowSize) {
+    ctx.font = fontSize + 'px "JetBrains Mono"';
+    // Glow layer
+    ctx.fillStyle = `rgba(${r},${g},${b}, ${alpha * 0.25})`;
+    ctx.filter = `blur(${glowSize}px)`;
+    ctx.fillText(text, x, y);
+    ctx.filter = 'none';
+    // Crisp text
+    ctx.fillStyle = `rgba(${r},${g},${b}, ${alpha})`;
+    ctx.fillText(text, x, y);
+  }
+
+  // Degree labels with glow
+  ctx.textAlign = 'center';
+  glowText('000', cx, cy - radarR - 4, 0, 220, 245, 0.4 + sb * 0.2, 7, 3);
+  glowText('090', cx + radarR + 12, cy + 3, 0, 220, 245, 0.4 + sb * 0.2, 7, 3);
+  glowText('180', cx, cy + radarR + 10, 0, 220, 245, 0.4 + sb * 0.2, 7, 3);
+  glowText('270', cx - radarR - 12, cy + 3, 0, 220, 245, 0.4 + sb * 0.2, 7, 3);
+  ctx.textAlign = 'left';
+
+  // === LEFT: Vertical frequency bars with aura ===
+  const panelX = w * 0.04;
+  const panelY = h * 0.12;
+  const panelW = w * 0.14;
+  const panelH = h * 0.76;
+  // Panel aura glow
+  const pAuraGrad = ctx.createLinearGradient(panelX - 10, 0, panelX + panelW + 10, 0);
+  pAuraGrad.addColorStop(0, 'transparent');
+  pAuraGrad.addColorStop(0.3, `rgba(157, 78, 221, ${0.015 + sb * 0.01})`);
+  pAuraGrad.addColorStop(0.7, `rgba(157, 78, 221, ${0.015 + sb * 0.01})`);
+  pAuraGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = pAuraGrad;
+  ctx.fillRect(panelX - 10, panelY - 10, panelW + 20, panelH + 20);
+  // Frame with glow
+  ctx.strokeStyle = `rgba(157, 78, 221, ${0.06 + sb * 0.04})`;
+  ctx.lineWidth = 3; ctx.strokeRect(panelX, panelY, panelW, panelH);
+  ctx.strokeStyle = `rgba(157, 78, 221, ${0.15 + sb * 0.08})`;
+  ctx.lineWidth = 0.5; ctx.strokeRect(panelX, panelY, panelW, panelH);
+  glowText('FREQ SPECTRUM', panelX + 3, panelY - 3, 157, 78, 221, 0.5 + sb * 0.3, 7, 4);
 
   if (freqData) {
-    const barCount = 24;
-    const barH = (panelH - 20) / barCount;
+    const barCount = 32;
+    const barH = (panelH - 10) / barCount;
     for (let i = 0; i < barCount; i++) {
       const freqIdx = Math.floor((i / barCount) * 128);
       const val = freqData[freqIdx] / 255;
-      const barW = val * (panelW - 16);
-      const by = panelY + 10 + i * barH;
-      // Bar fill
-      const barGrad = ctx.createLinearGradient(panelX + 8, 0, panelX + 8 + panelW - 16, 0);
-      barGrad.addColorStop(0, `rgba(157, 78, 221, ${0.4 + val * 0.4})`);
-      barGrad.addColorStop(0.7, `rgba(0, 220, 245, ${0.3 + val * 0.5})`);
-      barGrad.addColorStop(1, `rgba(0, 220, 245, ${val * 0.8})`);
+      const barW = val * (panelW - 10);
+      const by = panelY + 5 + i * barH;
+      // Bar glow
+      if (val > 0.2) {
+        ctx.fillStyle = `rgba(0, 220, 245, ${val * 0.04})`;
+        ctx.fillRect(panelX + 3, by, barW + 8, barH);
+      }
+      // Gradient bar
+      const barGrad = ctx.createLinearGradient(panelX + 5, 0, panelX + 5 + panelW - 10, 0);
+      barGrad.addColorStop(0, `rgba(157, 78, 221, ${0.3 + val * 0.5})`);
+      barGrad.addColorStop(1, `rgba(0, 220, 245, ${val * 0.7})`);
       ctx.fillStyle = barGrad;
-      ctx.fillRect(panelX + 8, by, barW, barH - 2);
-      // Bar peak marker
-      ctx.fillStyle = `rgba(220, 200, 255, ${0.5 + val * 0.5})`;
-      ctx.fillRect(panelX + 8 + barW, by, 2, barH - 2);
+      ctx.fillRect(panelX + 5, by + 1, barW, barH - 2);
+      // Peak dot with bloom
+      if (val > 0.1) {
+        ctx.fillStyle = `rgba(220, 230, 255, ${0.5 + val * 0.5})`;
+        ctx.fillRect(panelX + 5 + barW, by + 1, 1.5, barH - 2);
+        ctx.fillStyle = `rgba(220, 230, 255, ${val * 0.1})`;
+        ctx.fillRect(panelX + 3 + barW, by, 5, barH);
+      }
     }
   }
 
-  // === RIGHT PANEL: Waveform oscilloscope ===
-  const rPanelX = w * 0.79;
-  const rPanelY = h * 0.1;
-  const rPanelW = w * 0.18;
-  const rPanelH = h * 0.35;
-  ctx.strokeStyle = `rgba(0, 220, 245, ${0.2 + sb * 0.1})`;
-  ctx.strokeRect(rPanelX, rPanelY, rPanelW, rPanelH);
-  ctx.font = '9px "JetBrains Mono"';
-  ctx.fillStyle = `rgba(0, 220, 245, ${0.5 + sb * 0.3})`;
-  ctx.fillText('WAVEFORM', rPanelX + 4, rPanelY - 4);
+  // === RIGHT TOP: Waveform oscilloscope with glow ===
+  const rPanelX = w * 0.82;
+  const rPanelY = h * 0.12;
+  const rPanelW = w * 0.14;
+  const rPanelH = h * 0.32;
+  // Panel aura
+  const rAuraGrad = ctx.createLinearGradient(rPanelX - 10, 0, rPanelX + rPanelW + 10, 0);
+  rAuraGrad.addColorStop(0, 'transparent');
+  rAuraGrad.addColorStop(0.3, `rgba(0, 220, 245, ${0.012 + sb * 0.008})`);
+  rAuraGrad.addColorStop(0.7, `rgba(0, 220, 245, ${0.012 + sb * 0.008})`);
+  rAuraGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = rAuraGrad;
+  ctx.fillRect(rPanelX - 10, rPanelY - 10, rPanelW + 20, rPanelH + 20);
+  // Frame glow
+  ctx.strokeStyle = `rgba(0, 220, 245, ${0.05 + sb * 0.03})`;
+  ctx.lineWidth = 3; ctx.strokeRect(rPanelX, rPanelY, rPanelW, rPanelH);
+  ctx.strokeStyle = `rgba(0, 220, 245, ${0.15 + sb * 0.08})`;
+  ctx.lineWidth = 0.5; ctx.strokeRect(rPanelX, rPanelY, rPanelW, rPanelH);
+  glowText('WAVEFORM', rPanelX + 3, rPanelY - 3, 0, 220, 245, 0.5 + sb * 0.3, 7, 4);
 
-  // Oscilloscope line
+  // Center baseline
+  const oMidY = rPanelY + rPanelH / 2;
+  ctx.beginPath(); ctx.moveTo(rPanelX, oMidY); ctx.lineTo(rPanelX + rPanelW, oMidY);
+  ctx.strokeStyle = 'rgba(0, 220, 245, 0.06)'; ctx.lineWidth = 0.3; ctx.stroke();
+
   if (freqData) {
     ctx.beginPath();
-    const oMidY = rPanelY + rPanelH / 2;
     for (let i = 0; i < rPanelW; i++) {
       const idx = Math.floor((i / rPanelW) * 256);
       const val = ((freqData[idx] || 128) - 128) / 128;
-      const oy = oMidY + val * rPanelH * 0.4;
+      const oy = oMidY + val * rPanelH * 0.38;
       if (i === 0) ctx.moveTo(rPanelX + i, oy);
       else ctx.lineTo(rPanelX + i, oy);
     }
+    // Wide glow
+    ctx.strokeStyle = `rgba(0, 220, 245, ${0.04 + sb * 0.03})`;
+    ctx.lineWidth = 8; ctx.stroke();
+    // Medium glow
+    ctx.strokeStyle = `rgba(0, 220, 245, ${0.08 + sb * 0.05})`;
+    ctx.lineWidth = 3; ctx.stroke();
+    // Crisp line
     ctx.strokeStyle = `rgba(0, 220, 245, ${0.6 + sb * 0.3})`;
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    // Glow
-    ctx.strokeStyle = `rgba(0, 220, 245, ${0.1 + sb * 0.05})`;
-    ctx.lineWidth = 4;
-    ctx.stroke();
+    ctx.lineWidth = 0.8; ctx.stroke();
   }
-  // Center line
-  ctx.beginPath();
-  ctx.moveTo(rPanelX, rPanelY + rPanelH / 2);
-  ctx.lineTo(rPanelX + rPanelW, rPanelY + rPanelH / 2);
-  ctx.strokeStyle = 'rgba(0, 220, 245, 0.1)';
-  ctx.lineWidth = 0.5;
-  ctx.stroke();
 
-  // === RIGHT PANEL 2: Band meters ===
-  const r2Y = rPanelY + rPanelH + 20;
-  const r2H = h * 0.35;
-  ctx.strokeStyle = `rgba(255, 45, 123, ${0.2 + sb * 0.1})`;
-  ctx.strokeRect(rPanelX, r2Y, rPanelW, r2H);
-  ctx.font = '9px "JetBrains Mono"';
-  ctx.fillStyle = `rgba(255, 45, 123, ${0.5 + sb * 0.3})`;
-  ctx.fillText('BAND ANALYSIS', rPanelX + 4, r2Y - 4);
+  // === RIGHT BOTTOM: Band analysis meters with aura ===
+  const r2Y = rPanelY + rPanelH + 16;
+  const r2H = h * 0.32;
+  // Pink aura
+  const r2AuraGrad = ctx.createLinearGradient(rPanelX - 10, 0, rPanelX + rPanelW + 10, 0);
+  r2AuraGrad.addColorStop(0, 'transparent');
+  r2AuraGrad.addColorStop(0.3, `rgba(255, 45, 123, ${0.01 + sb * 0.008})`);
+  r2AuraGrad.addColorStop(0.7, `rgba(255, 45, 123, ${0.01 + sb * 0.008})`);
+  r2AuraGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = r2AuraGrad;
+  ctx.fillRect(rPanelX - 10, r2Y - 10, rPanelW + 20, r2H + 20);
+  ctx.strokeStyle = `rgba(255, 45, 123, ${0.05 + sb * 0.03})`;
+  ctx.lineWidth = 3; ctx.strokeRect(rPanelX, r2Y, rPanelW, r2H);
+  ctx.strokeStyle = `rgba(255, 45, 123, ${0.15 + sb * 0.08})`;
+  ctx.lineWidth = 0.5; ctx.strokeRect(rPanelX, r2Y, rPanelW, r2H);
+  glowText('BAND ANALYSIS', rPanelX + 3, r2Y - 3, 255, 45, 123, 0.5 + sb * 0.3, 7, 4);
 
   const bandNames = ['SUB', 'BASS', 'MID', 'HIGH', 'NRG'];
   const bandVals = [bands.sub, bands.bass, bands.mid, bands.high, bands.energy];
-  const bandColors = [
-    [157, 78, 221], [183, 110, 255], [0, 220, 245], [0, 180, 216], [255, 45, 123]
-  ];
+  const bandColors = [[157,78,221],[183,110,255],[0,220,245],[0,180,216],[255,45,123]];
   bandNames.forEach((name, i) => {
-    const by = r2Y + 15 + i * (r2H - 25) / 5;
-    const bh = (r2H - 25) / 5 - 6;
+    const by = r2Y + 12 + i * (r2H - 20) / 5;
+    const bh = (r2H - 20) / 5 - 4;
     const val = bandVals[i];
     const c = bandColors[i];
-    // Label
-    ctx.font = '8px "JetBrains Mono"';
-    ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.6)`;
-    ctx.fillText(name, rPanelX + 4, by + bh * 0.7);
+    glowText(name, rPanelX + 3, by + bh * 0.75, c[0], c[1], c[2], 0.5 + val * 0.3, 7, 3);
+    const barX = rPanelX + 30;
+    const barW = (rPanelW - 38) * val;
+    // Bar glow
+    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]}, ${val * 0.06})`;
+    ctx.fillRect(barX - 2, by, barW + 6, bh + 2);
     // Bar
-    const barX = rPanelX + 35;
-    const barW = (rPanelW - 45) * val;
-    ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${0.3 + val * 0.5})`;
-    ctx.fillRect(barX, by, barW, bh);
-    ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${val * 0.1})`;
-    ctx.fillRect(barX, by, barW + 10, bh);
-    // Value
-    ctx.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.6)`;
-    ctx.fillText((val * 100).toFixed(0) + '%', rPanelX + rPanelW - 28, by + bh * 0.7);
+    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]}, ${0.3 + val * 0.5})`;
+    ctx.fillRect(barX, by + 1, barW, bh - 1);
+    glowText((val * 100).toFixed(0), rPanelX + rPanelW - 18, by + bh * 0.75, c[0], c[1], c[2], 0.5, 6, 2);
   });
 
-  // === TOP BAR: Status readouts ===
-  ctx.font = '10px "JetBrains Mono"';
-  const statusY = h * 0.04;
-  ctx.fillStyle = `rgba(0, 220, 245, ${0.4 + sb * 0.2})`;
-  ctx.fillText(`SYS://AETHER.AUDIO`, w * 0.25, statusY);
-  ctx.fillStyle = `rgba(157, 78, 221, ${0.4 + sb * 0.2})`;
-  ctx.fillText(`BEAT: ${(bi * 100).toFixed(0)}%`, w * 0.5, statusY);
-  ctx.fillStyle = `rgba(255, 45, 123, ${0.3 + sb * 0.3})`;
-  ctx.fillText(`NRG: ${(bands.energy * 100).toFixed(0)}%`, w * 0.7, statusY);
+  // === TOP BAR: Glowing status ===
+  const statusY = h * 0.035;
+  ctx.textAlign = 'left';
+  glowText('SYS://AETHER.CMD', w * 0.04, statusY, 0, 220, 245, 0.4 + sb * 0.2, 8, 5);
+  ctx.textAlign = 'center';
+  glowText(`BEAT ${(bi * 100).toFixed(0)}%`, cx, statusY, 157, 78, 221, 0.4 + sb * 0.3, 8, 5);
+  ctx.textAlign = 'right';
+  glowText(`NRG ${(bands.energy * 100).toFixed(0)}%`, w * 0.96, statusY, 255, 45, 123, 0.35 + sb * 0.3, 8, 5);
+  ctx.textAlign = 'left';
 
-  // === BOTTOM STATUS: Scrolling data feed ===
-  const feedY = h * 0.96;
-  const scrollX = (time * 0.05) % (w * 2);
-  ctx.font = '8px "JetBrains Mono"';
+  // === BOTTOM: Scrolling data ticker with glow ===
+  const feedY = h * 0.97;
+  const scrollX = (time * 0.04) % (w * 2);
+  const feedText = '/// AETHER CMD v1.0 /// FFT-2048 ACTIVE /// BEAT DETECTION ONLINE /// FREQ ANALYSIS NOMINAL /// ALL SYSTEMS GO ///';
+  ctx.font = '7px "JetBrains Mono"';
+  // Glow layer
+  ctx.fillStyle = `rgba(0, 220, 245, ${0.05 + sb * 0.03})`;
+  ctx.filter = 'blur(4px)';
+  ctx.fillText(feedText, -scrollX, feedY);
+  ctx.fillText(feedText, -scrollX + w * 2, feedY);
+  ctx.filter = 'none';
+  // Crisp
   ctx.fillStyle = `rgba(0, 220, 245, ${0.2 + sb * 0.1})`;
-  const feedText = '/// AETHER COMMAND DECK v1.0 /// AUDIO SUBSYSTEM ONLINE /// FFT-2048 /// BEAT DETECTION ACTIVE /// FREQUENCY ANALYSIS NOMINAL /// ALL SYSTEMS OPERATIONAL ///';
   ctx.fillText(feedText, -scrollX, feedY);
   ctx.fillText(feedText, -scrollX + w * 2, feedY);
 
-  // === Corner brackets ===
-  const bracketSize = 20;
-  const bracketAlpha = 0.3 + sb * 0.2;
-  ctx.strokeStyle = `rgba(0, 220, 245, ${bracketAlpha})`;
-  ctx.lineWidth = 1.5;
-  // Top-left
-  ctx.beginPath(); ctx.moveTo(8, 8 + bracketSize); ctx.lineTo(8, 8); ctx.lineTo(8 + bracketSize, 8); ctx.stroke();
-  // Top-right
-  ctx.beginPath(); ctx.moveTo(w - 8 - bracketSize, 8); ctx.lineTo(w - 8, 8); ctx.lineTo(w - 8, 8 + bracketSize); ctx.stroke();
-  // Bottom-left
-  ctx.beginPath(); ctx.moveTo(8, h - 8 - bracketSize); ctx.lineTo(8, h - 8); ctx.lineTo(8 + bracketSize, h - 8); ctx.stroke();
-  // Bottom-right
-  ctx.beginPath(); ctx.moveTo(w - 8 - bracketSize, h - 8); ctx.lineTo(w - 8, h - 8); ctx.lineTo(w - 8, h - 8 - bracketSize); ctx.stroke();
+  // === Corner brackets with glow ===
+  const bS = 16;
+  const bA = 0.25 + sb * 0.2;
+  // Glow layer
+  ctx.strokeStyle = `rgba(0, 220, 245, ${bA * 0.2})`;
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(6, 6+bS); ctx.lineTo(6,6); ctx.lineTo(6+bS,6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(w-6-bS,6); ctx.lineTo(w-6,6); ctx.lineTo(w-6,6+bS); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(6,h-6-bS); ctx.lineTo(6,h-6); ctx.lineTo(6+bS,h-6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(w-6-bS,h-6); ctx.lineTo(w-6,h-6); ctx.lineTo(w-6,h-6-bS); ctx.stroke();
+  // Crisp layer
+  ctx.strokeStyle = `rgba(0, 220, 245, ${bA})`;
+  ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(6, 6+bS); ctx.lineTo(6,6); ctx.lineTo(6+bS,6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(w-6-bS,6); ctx.lineTo(w-6,6); ctx.lineTo(w-6,6+bS); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(6,h-6-bS); ctx.lineTo(6,h-6); ctx.lineTo(6+bS,h-6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(w-6-bS,h-6); ctx.lineTo(w-6,h-6); ctx.lineTo(w-6,h-6-bS); ctx.stroke();
 
-  vizGlowIntensity = bands.energy * 0.3 + sb * 0.4;
+  // === Beat flash — full screen subtle flash on hard beats ===
+  if (bi > 0.6) {
+    const flashAlpha = (bi - 0.6) * 0.08;
+    ctx.fillStyle = `rgba(0, 220, 245, ${flashAlpha})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  vizGlowIntensity = bands.energy * 0.35 + sb * 0.5;
   const panel = document.getElementById('vizPanel');
   if (panel) {
-    const glow = Math.round(vizGlowIntensity * 25);
-    panel.style.boxShadow = `0 0 ${glow}px rgba(0,220,245,${vizGlowIntensity * 0.4}), 0 0 ${glow*2}px rgba(157,78,221,${vizGlowIntensity * 0.15})`;
+    const glow = Math.round(vizGlowIntensity * 30);
+    panel.style.boxShadow = `0 0 ${glow}px rgba(0,220,245,${vizGlowIntensity * 0.5}), 0 0 ${glow*2}px rgba(157,78,221,${vizGlowIntensity * 0.2}), 0 0 ${glow*3}px rgba(0,180,216,${vizGlowIntensity * 0.08})`;
   }
 }
 
