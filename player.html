@@ -1977,17 +1977,9 @@ const SUBSONIC = {
   async get(endpoint, params = {}) {
     const query = new URLSearchParams(params).toString();
     const url = `${this.baseUrl}/rest/${endpoint}?${this.auth()}${query ? '&' + query : ''}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-    try {
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      const data = await res.json();
-      return data['subsonic-response'];
-    } catch(e) {
-      clearTimeout(timeoutId);
-      throw e;
-    }
+    const res = await fetch(url);
+    const data = await res.json();
+    return data['subsonic-response'];
   },
   streamUrl(id) {
     return `${this.baseUrl}/rest/stream?id=${id}&${this.auth()}`;
@@ -7705,7 +7697,14 @@ document.querySelector('.viz-expand').addEventListener('click', (e) => {
   await delay(200);
 
   try {
-    const ping = await SUBSONIC.get('ping');
+    // 8s timeout on ping only — prevents splash from hanging forever
+    const pingController = new AbortController();
+    const pingTimeout = setTimeout(() => pingController.abort(), 8000);
+    const pingUrl = `${SUBSONIC.baseUrl}/rest/ping?${SUBSONIC.auth()}`;
+    const pingRes = await fetch(pingUrl, { signal: pingController.signal });
+    clearTimeout(pingTimeout);
+    const pingData = await pingRes.json();
+    const ping = pingData['subsonic-response'];
     console.log('Navidrome connected:', ping.status, ping.serverVersion);
 
     splashProgress(50, 'HANDSHAKE COMPLETE — v' + (ping.serverVersion || '?'));
