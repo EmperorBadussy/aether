@@ -192,7 +192,7 @@ Fonts: **Orbitron** (display) / **Rajdhani** (body) / **JetBrains Mono** (techni
 
 ### Install & Run
 ```bash
-git clone https://github.com/badussy/aether.git
+git clone https://github.com/EmperorBadussy/aether.git
 cd aether
 npm install
 npm start
