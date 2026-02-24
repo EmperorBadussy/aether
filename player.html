@@ -89,7 +89,7 @@
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   --sidebar-width: 240px;
   --sidebar-collapsed: 56px;
-  --titlebar-h: 32px;
+  --titlebar-h: 36px;
   --nowplaying-h: 90px;
 }
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -101,7 +101,8 @@
 html, body { height:100%; overflow:hidden; background:var(--bg-void); color:var(--purple-white); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
 
 /* TITLEBAR */
-.titlebar { position:fixed; top:0; left:0; right:0; height:var(--titlebar-h); background:var(--bg-surface); border-bottom:1px solid var(--purple-dim); display:flex; align-items:center; justify-content:space-between; -webkit-app-region:drag; z-index:9999; padding-left:14px; user-select:none; }
+.titlebar { position:fixed; top:0; left:0; right:0; height:var(--titlebar-h); background:var(--bg-surface); border-bottom:1px solid var(--purple-dim); display:flex; align-items:center; justify-content:space-between; -webkit-app-region:drag; z-index:9999; padding-left:14px; user-select:none; cursor:grab; }
+.titlebar:active { cursor:grabbing; }
 .titlebar-left { display:flex; align-items:center; gap:8px; }
 .titlebar-logo { font-family:var(--font-display); font-weight:800; font-size:0.6rem; color:var(--purple-vivid); text-shadow:var(--glow-text); letter-spacing:0.15em; }
 .titlebar-logo .logo-p { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border:1.5px solid var(--purple-bright); border-radius:4px; font-size:0.5rem; box-shadow:var(--glow-subtle); margin-right:6px; }
@@ -133,7 +134,8 @@ body.vertical-mode .np-center { order:-1; }
 body.vertical-mode .np-right { justify-content:center; }
 body.vertical-mode .visualizer-panel { height:40vh; margin:12px; }
 body.vertical-mode .album-grid { grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:12px; }
-body.vertical-mode .content-header { flex-direction:column; align-items:flex-start; gap:8px; }
+body.vertical-mode .content-header { flex-direction:column; align-items:center; gap:8px; }
+body.vertical-mode .content-header-right { position:static; transform:none; }
 body.vertical-mode .track-row { grid-template-columns:30px 2fr 1fr 60px; }
 body.vertical-mode .track-list-header { grid-template-columns:30px 2fr 1fr 60px; }
 
@@ -172,8 +174,9 @@ body.vertical-mode .track-list-header { grid-template-columns:30px 2fr 1fr 60px;
 
 /* MAIN CONTENT */
 .main-content { background:var(--bg-void); overflow-y:auto; overflow-x:hidden; position:relative; }
-.content-header { padding:24px 28px 0; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
-.content-title { font-family:var(--font-display); font-weight:700; font-size:1.5rem; color:var(--purple-white); text-shadow:var(--glow-text); letter-spacing:0.04em; }
+.content-header { padding:16px 28px 12px; display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; position:relative; }
+.content-title { font-family:var(--font-display); font-weight:700; font-size:1.1rem; color:var(--purple-white); text-shadow:var(--glow-text); letter-spacing:0.1em; text-transform:uppercase; }
+.content-header-right { position:absolute; right:28px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:12px; }
 .view-toggles { display:flex; gap:4px; background:var(--bg-surface); border:1px solid var(--purple-dim); border-radius:8px; padding:3px; }
 .view-btn { border:none; background:transparent; padding:6px 10px; border-radius:6px; cursor:pointer; transition:background 0.2s, color 0.2s, transform 0.1s; display:flex; align-items:center; }
 .view-btn svg { width:16px; height:16px; stroke:var(--purple-muted); fill:none; stroke-width:1.5; }
@@ -709,18 +712,19 @@ body::after {
 /* CONTENT TITLE — glow accent line */
 .content-title {
   position: relative;
-  padding-bottom: 12px;
+  padding-bottom: 8px;
 }
 .content-title::after {
   content: '';
   position: absolute;
   bottom: 0;
-  left: 0;
-  width: 60px;
-  height: 2px;
-  background: linear-gradient(90deg, var(--purple-bright), var(--cyan-core), transparent);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--purple-bright), var(--cyan-core), var(--purple-bright), transparent);
   border-radius: 1px;
-  box-shadow: 0 0 8px rgba(0, 220, 245, 0.4);
+  box-shadow: 0 0 8px rgba(0, 220, 245, 0.3);
 }
 
 /* ALBUM PLAY OVERLAY — more cinematic */
@@ -1037,7 +1041,10 @@ body::after {
 /* CONTENT HEADER UNDERLINE — animated gradient with magenta */
 .content-title::after {
   width: calc(40px + var(--energy, 0) * 40px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
   background: linear-gradient(90deg,
+    transparent,
     rgba(157, 78, 221, calc(0.8 + var(--beat, 0) * 0.2)),
     rgba(255, 45, 123, calc(0.4 + var(--beat, 0) * 0.4)),
     rgba(0, 220, 245, calc(0.3 + var(--energy, 0) * 0.4)),
@@ -1370,11 +1377,11 @@ body::after {
   <!-- MAIN CONTENT -->
   <div class="main-content" id="mainContent">
     <div class="content-header">
-      <button id="btnBack" onclick="navigateBack()" style="display:none;background:none;border:1px solid var(--purple-dim);border-radius:6px;padding:6px 8px;cursor:pointer;transition:all 0.2s;" title="Back">
+      <button id="btnBack" onclick="navigateBack()" style="display:none;position:absolute;left:28px;top:50%;transform:translateY(-50%);background:none;border:1px solid var(--purple-dim);border-radius:6px;padding:6px 8px;cursor:pointer;transition:all 0.2s;z-index:2;" title="Back">
         <svg width="16" height="16" viewBox="0 0 24 24" stroke="var(--purple-muted)" fill="none" stroke-width="1.5"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <h1 class="content-title" id="contentTitle">Library</h1>
-      <div style="display:flex;align-items:center;gap:12px;">
+      <div class="content-header-right">
         <div class="view-toggles" id="viewToggles">
           <button class="view-btn active" data-mode="list" title="List view">
             <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -1493,6 +1500,20 @@ body::after {
           <option value="120000">120s</option>
           <option value="300000">5m</option>
         </select>
+      </div>
+
+      <div style="font-family:var(--font-display);font-size:0.7rem;color:var(--cyan-bright);letter-spacing:0.12em;margin:20px 0 12px;">ELECTRIC SHEEP</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="settSheepFolder" placeholder="Video folder path (e.g. C:\Sheep)" style="flex:1;background:var(--bg-input);border:1px solid var(--purple-dim);border-radius:6px;color:var(--purple-white);font-family:var(--font-mono);font-size:0.75rem;padding:8px 12px;outline:none;transition:border-color 0.2s;">
+          <button id="settSheepBrowse" style="background:var(--bg-raised);border:1px solid var(--purple-dim);border-radius:6px;color:var(--purple-hot);font-family:var(--font-display);font-size:0.6rem;letter-spacing:0.08em;padding:8px 12px;cursor:pointer;transition:all 0.2s;white-space:nowrap;">BROWSE</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="settSheepScan" style="background:var(--bg-raised);border:1px solid var(--purple-dim);border-radius:6px;color:var(--purple-hot);font-family:var(--font-display);font-size:0.6rem;letter-spacing:0.08em;padding:8px 14px;cursor:pointer;transition:all 0.2s;">SCAN FOLDER</button>
+          <button id="settSheepAddFiles" style="background:var(--bg-raised);border:1px solid var(--purple-dim);border-radius:6px;color:var(--purple-hot);font-family:var(--font-display);font-size:0.6rem;letter-spacing:0.08em;padding:8px 14px;cursor:pointer;transition:all 0.2s;">ADD FILES</button>
+          <button id="settSheepClear" style="background:var(--bg-raised);border:1px solid var(--purple-dim);border-radius:6px;color:var(--purple-muted);font-family:var(--font-display);font-size:0.6rem;letter-spacing:0.08em;padding:8px 14px;cursor:pointer;transition:all 0.2s;">CLEAR</button>
+        </div>
+        <div id="settSheepStatus" style="font-family:var(--font-mono);font-size:0.7rem;color:var(--purple-muted);padding:4px 0;">No videos loaded</div>
       </div>
 
       <div style="font-family:var(--font-display);font-size:0.7rem;color:var(--cyan-bright);letter-spacing:0.12em;margin:20px 0 12px;">LAYOUT</div>
@@ -2956,6 +2977,89 @@ document.getElementById('settTestConn').addEventListener('click', async () => {
   setTimeout(() => { btn.textContent = 'TEST CONNECTION'; btn.style.borderColor = ''; }, 3000);
 });
 
+// ============ ELECTRIC SHEEP SETTINGS ============
+function updateSheepStatus() {
+  const el = document.getElementById('settSheepStatus');
+  if (!el) return;
+  if (sheepVideos.length === 0) {
+    el.textContent = 'No videos loaded';
+    el.style.color = 'var(--purple-muted)';
+  } else {
+    el.textContent = `${sheepVideos.length} video${sheepVideos.length === 1 ? '' : 's'} loaded` + (sheepFolder ? ` from ${sheepFolder}` : '');
+    el.style.color = 'var(--purple-bright)';
+  }
+}
+
+function scanSheepFolder(folderPath) {
+  if (!folderPath) return;
+  sheepFolder = folderPath;
+  if (window.electronAPI && window.electronAPI.scanSheepFolder) {
+    const files = window.electronAPI.scanSheepFolder(folderPath);
+    sheepVideos = (files || []).map(f => 'file:///' + f);
+    showToast(`Electric Sheep: ${sheepVideos.length} video${sheepVideos.length === 1 ? '' : 's'} loaded`);
+  } else {
+    showToast('Electric Sheep: folder scan not available');
+  }
+  // Persist
+  localStorage.setItem('aether_sheep_folder', folderPath);
+  updateSheepStatus();
+}
+
+document.getElementById('settSheepBrowse').addEventListener('click', async () => {
+  if (window.electronAPI && window.electronAPI.openFolderDialog) {
+    const folder = await window.electronAPI.openFolderDialog('Select Electric Sheep Video Folder');
+    if (folder) {
+      document.getElementById('settSheepFolder').value = folder;
+      scanSheepFolder(folder);
+    }
+  } else {
+    showToast('Folder picker requires Electron');
+  }
+});
+
+document.getElementById('settSheepScan').addEventListener('click', () => {
+  const folder = document.getElementById('settSheepFolder').value.trim();
+  if (!folder) { showToast('Enter a folder path first'); return; }
+  scanSheepFolder(folder);
+});
+
+document.getElementById('settSheepAddFiles').addEventListener('click', async () => {
+  if (window.electronAPI && window.electronAPI.openFilesDialog) {
+    const files = await window.electronAPI.openFilesDialog('Select Video Files', ['mp4', 'webm', 'mkv', 'avi', 'mov', 'm4v']);
+    if (files && files.length > 0) {
+      files.forEach(f => {
+        sheepVideos.push('file:///' + f.replace(/\\/g, '/'));
+      });
+      showToast(`Electric Sheep: added ${files.length} video${files.length === 1 ? '' : 's'}`);
+      updateSheepStatus();
+    }
+  } else {
+    showToast('File picker requires Electron');
+  }
+});
+
+document.getElementById('settSheepClear').addEventListener('click', () => {
+  sheepVideos = [];
+  sheepVideoIdx = 0;
+  sheepFolder = '';
+  document.getElementById('settSheepFolder').value = '';
+  localStorage.removeItem('aether_sheep_folder');
+  const sv = document.getElementById('sheepVideo');
+  sv.pause();
+  sv.removeAttribute('src');
+  showToast('Electric Sheep: videos cleared');
+  updateSheepStatus();
+});
+
+// Load saved sheep folder on startup
+(function loadSheepSettings() {
+  const saved = localStorage.getItem('aether_sheep_folder');
+  if (saved) {
+    document.getElementById('settSheepFolder').value = saved;
+    sheepFolder = saved;
+  }
+})();
+
 // ============ FILTER ============
 document.getElementById('filterInput').addEventListener('input', (e) => {
   const trackList = document.getElementById('trackList');
@@ -3113,14 +3217,18 @@ function drawElectricSheepOverlay(ctx, w, h, time) {
     ctx.globalCompositeOperation = 'source-over';
 
     // Instruction text
-    ctx.font = '600 0.7rem Orbitron';
+    ctx.font = '600 0.9rem Orbitron';
     ctx.fillStyle = `rgba(238,212,255,${0.5 + Math.sin(time * 0.002) * 0.2})`;
     ctx.textAlign = 'center';
-    ctx.fillText('ELECTRIC SHEEP', cx, cy - 20);
-    ctx.font = '0.55rem "JetBrains Mono"';
-    ctx.fillStyle = 'rgba(157,78,221,0.5)';
-    ctx.fillText('Drop .mp4 files into C:\\Sheep to load', cx, cy + 10);
-    ctx.fillText('or add videos via Settings → Electric Sheep', cx, cy + 28);
+    ctx.fillText('ELECTRIC SHEEP', cx, cy - 30);
+    ctx.font = '0.6rem "JetBrains Mono"';
+    ctx.fillStyle = 'rgba(183,110,255,0.6)';
+    ctx.fillText('No fractal videos loaded', cx, cy + 5);
+    ctx.font = '0.5rem "JetBrains Mono"';
+    ctx.fillStyle = 'rgba(157,78,221,0.45)';
+    ctx.fillText('DRAG & DROP video files here', cx, cy + 30);
+    ctx.fillText('or open Settings → Electric Sheep to browse', cx, cy + 48);
+    ctx.fillText('Supports: MP4, WebM, MKV, AVI, MOV', cx, cy + 70);
     ctx.textAlign = 'start';
     return;
   }
@@ -5980,21 +6088,25 @@ document.querySelector('.viz-expand').addEventListener('click', (e) => {
 
 // ============ ELECTRIC SHEEP AUTO-SCAN ============
 (function initElectricSheep() {
-  // Scan C:\Sheep for video files on startup
+  // Load saved folder from localStorage, fallback to C:\Sheep
+  const savedFolder = localStorage.getItem('aether_sheep_folder');
+  const scanPath = savedFolder || 'C:\\Sheep';
   if (window.electronAPI && window.electronAPI.scanSheepFolder) {
-    const files = window.electronAPI.scanSheepFolder('C:\\Sheep');
+    const files = window.electronAPI.scanSheepFolder(scanPath);
     if (files.length > 0) {
       sheepVideos = files.map(f => 'file:///' + f);
-      console.log(`Electric Sheep: loaded ${files.length} videos from C:\\Sheep`);
+      sheepFolder = scanPath;
+      console.log(`Electric Sheep: loaded ${files.length} videos from ${scanPath}`);
     }
   }
+  updateSheepStatus();
 
   // Drag and drop video files onto the visualizer
   const vizPanel = document.getElementById('vizPanel');
   vizPanel.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    vizPanel.style.outline = '2px solid var(--magenta-bright)';
+    vizPanel.style.outline = '2px solid var(--purple-bright)';
     vizPanel.style.outlineOffset = '-2px';
   });
   vizPanel.addEventListener('dragleave', () => {
@@ -6012,7 +6124,8 @@ document.querySelector('.viz-expand').addEventListener('click', (e) => {
       videos.forEach(f => {
         sheepVideos.push('file:///' + f.path.replace(/\\/g, '/'));
       });
-      showToast(`Electric Sheep: added ${videos.length} videos`);
+      showToast(`Electric Sheep: added ${videos.length} video${videos.length === 1 ? '' : 's'}`);
+      updateSheepStatus();
       // Auto-switch to Electric Sheep scene
       switchScene(10);
       const sv = document.getElementById('sheepVideo');

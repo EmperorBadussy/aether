@@ -41,4 +41,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return [];
     }
   },
+  // Native folder picker dialog
+  openFolderDialog: (title) => ipcRenderer.invoke('open-folder-dialog', title),
+  // Native file picker dialog (multi-select)
+  openFilesDialog: (title, extensions) => ipcRenderer.invoke('open-files-dialog', title, extensions),
+  // Check if a path exists
+  pathExists: (p) => fs.existsSync(p),
 });

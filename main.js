@@ -18,7 +18,7 @@
  * - TODO: Add MPRIS/Windows media session integration
  */
 
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, screen, session } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, screen, session, dialog } = require('electron');
 const path = require('path');
 
 let mainWindow = null;
@@ -174,4 +174,27 @@ ipcMain.on('window-close', () => {
 
 ipcMain.handle('window-is-maximized', () => {
   return mainWindow ? mainWindow.isMaximized() : false;
+});
+
+// ============ IPC HANDLERS — FOLDER PICKER ============
+
+ipcMain.handle('open-folder-dialog', async (_event, title) => {
+  if (!mainWindow) return null;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: title || 'Select Folder',
+    properties: ['openDirectory'],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle('open-files-dialog', async (_event, title, extensions) => {
+  if (!mainWindow) return [];
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: title || 'Select Files',
+    properties: ['openFile', 'multiSelections'],
+    filters: extensions ? [{ name: 'Videos', extensions }] : [],
+  });
+  if (result.canceled) return [];
+  return result.filePaths;
 });
